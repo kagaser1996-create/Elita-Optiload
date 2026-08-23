@@ -61,7 +61,6 @@
             </div>
             <div>
                 <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Departman Yetkisi</label>
-                <!-- ADMIN OPTION REMOVED -->
                 <select id="regRole" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none font-semibold">
                     <option value="sales">Satış Ekibi (Planlar & Onaya Gönderir)</option>
                     <option value="logistics">Lojistik & Ar-Ge (İnceler & Nihai Onay Verir)</option>
@@ -337,9 +336,6 @@
 </div>
 
 <script>
-    // ==========================================
-    // ⚙️ SUPABASE AUTOMATIC KEYS (DO NOT CHANGE)
-    // ==========================================
     const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -350,7 +346,6 @@
     let lastComputedResult = null;
     let currentSimulationId = null; 
 
-    // --- SKU DATABASE ---
     const skuDatabase = [
         {name: "0,750*12 İNCEBELLİ", L: 262, W: 279, H: 278, Wt: 8.83},
         {name: "0,75*20 BÜKLÜM", L: 319, W: 402, H: 273, Wt: 14.69},
@@ -393,7 +388,6 @@
     let currentMode = 'mixed';
     const colorMap = ['#38bdf8', '#4ade80', '#facc15', '#c084fc', '#f472b6', '#fb923c', '#94a3b8'];
 
-    // --- AUTHENTICATION & ROLE LOGIC ---
     function switchAuthTab(mode) {
         authMode = mode;
         const btnLogin = document.getElementById('authTabLogin');
@@ -450,11 +444,6 @@
             const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
             let role = document.getElementById('regRole').value;
 
-            // ==========================================
-            // SECRET ADMIN BACKDOOR
-            // If the user registers with EXACTLY admin96@admin.com and password admin96,
-            // force their role to become 'admin' regardless of the dropdown.
-            // ==========================================
             if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') {
                 role = 'admin';
             }
@@ -505,7 +494,7 @@
         } else if (role === 'admin') {
             roleBadge.innerText = "YÖNETİCİ";
             roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-indigo-600 text-white uppercase";
-            btnLogistics.classList.remove('hidden'); btnLogistics.classList.add('flex');
+            // Admin can view history and inspect details
             dashBtn.classList.remove('hidden'); dashBtn.classList.add('flex');
         } else {
             roleBadge.innerText = "SATIŞ EKİBİ";
@@ -518,7 +507,6 @@
         await supabaseClient.auth.signOut(); location.reload();
     }
 
-    // --- THE WORKFLOW (SALES SUBMITS -> LOGISTICS LOADS/EDITS -> LOGISTICS APPROVES) ---
     async function saveSimulation(status) {
         if (!lastComputedResult) return showAlert("Lütfen önce simülasyonu çalıştırın.");
 
@@ -600,10 +588,13 @@
 
         updateVehicleDims(); handleBaseChange(); runEngine(); closeDashboard();
         
-        showAlert(`Talep yükleme motoruna aktarıldı.\n\nİstediğiniz değişiklikleri yapıp 'Nihai Planı Onayla' butonuna basarak süreci tamamlayabilirsiniz.`);
+        if (currentUserProfile.role === 'admin') {
+            showAlert(`Yönetici Modu: Onaylanan plan incelenmek üzere ekrana yüklendi.\n\nÜst menüden 'Saha Formunu Yazdır' butonuna basarak PDF olarak kaydedebilirsiniz.`);
+        } else {
+            showAlert(`Talep yükleme motoruna aktarıldı.\n\nİstediğiniz değişiklikleri yapıp 'Nihai Planı Onayla' butonuna basarak süreci tamamlayabilirsiniz.`);
+        }
     }
 
-    // --- DASHBOARD (INBOX) ---
     async function openDashboard() {
         document.getElementById('adminDashboardModal').classList.remove('hidden');
         const loading = document.getElementById('dashboardLoading');
@@ -628,10 +619,13 @@
                 let actionBtn = '';
                 if (row.status === 'bekliyor' && currentUserProfile.role === 'logistics') {
                     actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">İncele / Yükle</button>`;
+                } else if (row.status === 'onaylandi' && (currentUserProfile.role === 'admin' || currentUserProfile.role === 'logistics')) {
+                    // ADMIN OR LOGISTICS CAN OPEN APPROVED PLANS TO PRINT/PDF
+                    actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">🖨️ Aç & Yazdır</button>`;
                 } else if (row.status === 'bekliyor' && currentUserProfile.role === 'admin') {
                     actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">Görüntüle</button>`;
                 } else {
-                    actionBtn = `<span class="text-slate-400 text-[10px] font-bold uppercase">Tamamlandı</span>`;
+                    actionBtn = `<span class="text-slate-400 text-[10px] font-bold uppercase">Kayıtlı</span>`;
                 }
 
                 tbody.innerHTML += `
@@ -654,7 +648,6 @@
     }
     function closeDashboard() { document.getElementById('adminDashboardModal').classList.add('hidden'); }
 
-    // --- APPLICATION LOGISTICS CORE (2D Engine) ---
     function init() {
         const select = document.getElementById('skuSelect');
         skuDatabase.forEach((sku, idx) => select.options.add(new Option(`${sku.name} (${sku.L}x${sku.W}x${sku.H})`, idx)));
