@@ -365,7 +365,7 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
     
     let supabaseClient = null;
-    if (SUPABASE_URL && !SUPABASE_URL.includes('PASTE')) {
+    if (window.supabase) {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     }
 
@@ -456,53 +456,59 @@
         }
     }
 
-    async function handleRegister() {
+    async function handleAuthSubmit() {
         if(!supabaseClient) return alert("Supabase API bilgileri eksik!");
         const email = document.getElementById('authEmail').value.trim();
         const password = document.getElementById('authPassword').value;
         const err = document.getElementById('authErrorMsg');
         const submitBtn = document.getElementById('authSubmitBtn');
 
-        if (!email || !password) { err.innerText = "Lütfen e-posta ve şifrenizi girin."; err.classList.remove('hidden'); return; }
-
-        err.classList.add('hidden'); submitBtn.innerText = "İşlem yapılıyor..."; submitBtn.disabled = true;
-
-        const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
-        let role = document.getElementById('regRole').value;
-
-        if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') { role = 'admin'; }
-
-        const { data, error } = await supabaseClient.auth.signUp({ 
-            email, password, options: { data: { full_name: fullName, role: role } } 
-        });
-
-        if (error) {
-            err.innerText = "Kayıt hatası: " + error.message; err.classList.remove('hidden');
-            submitBtn.innerText = "Kullanıcı Oluştur ve Başla"; submitBtn.disabled = false;
-        } else {
-            currentUser = data.user; await loadUserProfile(data.user.id);
-            document.getElementById('authModal').classList.add('hidden');
+        if (!email || !password) {
+            err.innerText = "Lütfen e-posta ve şifrenizi girin.";
+            err.classList.remove('hidden');
+            return;
         }
-    }
 
-    async function handleLogin() {
-        if(!supabaseClient) return alert("Supabase API bilgileri eksik!");
-        const email = document.getElementById('authEmail').value.trim();
-        const password = document.getElementById('authPassword').value;
-        const err = document.getElementById('authErrorMsg');
-        const submitBtn = document.getElementById('authSubmitBtn');
+        err.classList.add('hidden');
+        submitBtn.innerText = "İşlem yapılıyor...";
+        submitBtn.disabled = true;
 
-        if (!email || !password) { err.innerText = "Lütfen e-posta ve şifrenizi girin."; err.classList.remove('hidden'); return; }
-
-        err.classList.add('hidden'); submitBtn.innerText = "İşlem yapılıyor..."; submitBtn.disabled = true;
-
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if (error) {
-            err.innerText = "Giriş hatası: Bilgilerinizi kontrol edin."; err.classList.remove('hidden');
-            submitBtn.innerText = "Giriş Yap"; submitBtn.disabled = false;
+        if (authMode === 'login') {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) {
+                err.innerText = "Giriş hatası: Bilgilerinizi kontrol edin.";
+                err.classList.remove('hidden');
+                submitBtn.innerText = "Giriş Yap";
+                submitBtn.disabled = false;
+            } else {
+                currentUser = data.user;
+                await loadUserProfile(data.user.id);
+                document.getElementById('authModal').classList.add('hidden');
+            }
         } else {
-            currentUser = data.user; await loadUserProfile(data.user.id);
-            document.getElementById('authModal').classList.add('hidden');
+            const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
+            let role = document.getElementById('regRole').value;
+
+            if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') {
+                role = 'admin';
+            }
+
+            const { data, error } = await supabaseClient.auth.signUp({
+                email,
+                password,
+                options: { data: { full_name: fullName, role: role } }
+            });
+
+            if (error) {
+                err.innerText = "Kayıt hatası: " + error.message;
+                err.classList.remove('hidden');
+                submitBtn.innerText = "Kullanıcı Oluştur ve Başla";
+                submitBtn.disabled = false;
+            } else {
+                currentUser = data.user;
+                await loadUserProfile(data.user.id);
+                document.getElementById('authModal').classList.add('hidden');
+            }
         }
     }
 
@@ -549,7 +555,6 @@
         location.reload();
     }
 
-    // --- THE WORKFLOW (SALES SUBMITS -> LOGISTICS LOADS/EDITS -> LOGISTICS APPROVES) ---
     async function saveSimulation(status) {
         if (!lastComputedResult) return showAlert("Lütfen önce simülasyonu çalıştırın.");
 
@@ -638,7 +643,6 @@
         }
     }
 
-    // --- DASHBOARD (INBOX) ---
     async function openDashboard() {
         document.getElementById('adminDashboardModal').classList.remove('hidden');
         const loading = document.getElementById('dashboardLoading');
@@ -692,7 +696,6 @@
     
     function closeDashboard() { document.getElementById('adminDashboardModal').classList.add('hidden'); }
 
-    // --- APPLICATION LOGISTICS CORE ---
     function init() {
         const select = document.getElementById('skuSelect');
         skuDatabase.forEach((sku, idx) => select.options.add(new Option(`${sku.name} (${sku.L}x${sku.W}x${sku.H})`, idx)));
@@ -935,7 +938,8 @@
                 } else {
                     let pConfig = getBestPalletConfig(sku, baseType, contH, maxWgt);
                     if(pConfig) {
-                        for(let k=0; k<Math.ceil(targetBoxes / pConfig.boxesPerLoad); k++) {
+                        let pallets = Math.ceil(targetBoxes / pConfig.boxesPerLoad);
+                        for(let k=0; k<pallets; k++) {
                             let b = Math.min(pConfig.boxesPerLoad, targetBoxes - (k*pConfig.boxesPerLoad));
                             itemsToPack.push({ id: sku.name, priority: idx, count: 1, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: sku.Wt, wgt: (b * sku.Wt) + (baseType==='pallet'?25:0), isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, color: rColor });
                         }
