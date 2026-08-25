@@ -49,7 +49,7 @@
 </head>
 <body class="p-0 md:p-4 h-screen flex flex-col">
 
-<!-- 1. AUTHENTICATION MODAL (LOGIN / SIGN UP) -->
+<!-- 1. AUTHENTICATION MODAL -->
 <div id="authModal" class="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4">
     <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border-t-8 border-sky-500">
         <div class="flex items-center gap-3 mb-2 justify-center">
@@ -146,7 +146,6 @@
         </div>
 
         <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-            
             <div id="userProfileBadge" class="hidden items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs mr-2">
                 <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
                 <span id="userEmailLabel" class="text-slate-300 font-medium">user@example.com</span>
@@ -336,7 +335,7 @@
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col flex-grow min-h-[450px] print-break-inside-avoid relative print-page-2">
             <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 rounded-t-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 z-10 relative">
                 <span class="text-sm font-bold text-slate-700">İÇ ÖLÇÜYE GÖRE ALAN YÖNETİMİ (2D YUKARIDAN BAKIŞ)</span>
-                <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200" id="modeConfigLabel">...</span>
+                <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200" id="modeConfigLabel">Optimum Düzen</span>
             </div>
             
             <div id="mixedResultsTable" class="hidden p-4 border-b border-slate-200 bg-slate-50 z-10 relative">
@@ -643,6 +642,7 @@
         }
     }
 
+    // --- DASHBOARD (INBOX) ---
     async function openDashboard() {
         document.getElementById('adminDashboardModal').classList.remove('hidden');
         const loading = document.getElementById('dashboardLoading');
@@ -1118,7 +1118,7 @@
         let skuDetailsHtml = '';
         for(let tg of sortedGroups) {
             let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let safeSkuId = sku.replace(/\W/g, ''); 
+            let safeSkuId = sku.replace(/\W/g, ''); // For canvas ID
             skuDetailsHtml += `
                 <li class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm mt-2">
                     <div class="flex items-center gap-2 mb-2"><span class="w-4 h-4 inline-block rounded border border-slate-300" style="background-color:${tg.color}"></span> <strong class="text-indigo-800 text-[13px]">${sku}</strong></div>
@@ -1129,6 +1129,7 @@
                         ${tg.partials > 0 ? `<div class="col-span-2 bg-rose-50 text-rose-700 p-2 rounded border border-rose-200 mt-1">⚠️ <strong>Ağırlık Limiti:</strong> Kalan ${tg.partials} adet ünite tam dizilmeyecektir! Sadece 2D Planda (kırmızı etiketli) yazan koli adedi kadar koyun!</div>` : ''}
                     </div>
                     
+                    <!-- NEW: PALLET PREVIEW DIAGRAM -->
                     <div class="col-span-2 flex items-center gap-4 mt-3 border-t border-slate-100 pt-3">
                         <div class="w-24 h-24 flex-shrink-0">
                             <canvas id="pallet_canvas_${safeSkuId}" width="96" height="96" class="w-full h-full object-contain bg-slate-50 border border-slate-200 rounded"></canvas>
@@ -1138,6 +1139,7 @@
                             İlk katı yandaki çizime göre yerleştirin. Üzerine belirtilen istif sayısına ulaşana kadar aynı düzeni veya kilitli (çapraz) düzeni tekrarlayın.
                         </div>
                     </div>
+
                 </li>`;
         }
 
@@ -1166,6 +1168,7 @@
             </div>
         `;
 
+        // YENİ: Palet dizilim çizimlerini HTML oluşturulduktan sonra render et
         for(let tg of sortedGroups) {
             let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
             let safeSkuId = sku.replace(/\W/g, '');
@@ -1176,9 +1179,11 @@
         if(currentMode === 'mixed') {
             let effContL = contL - (parseInt(document.getElementById('ventShrink').value) || 10);
             let effContW = contW - (parseInt(document.getElementById('ventShrink').value) || 10);
-            if (optFrontCurve) effContL -= 100; if (document.getElementById('optDoor').checked) effContL -= 80;
+            if (optFrontCurve) effContL -= 100;
+            if (document.getElementById('optDoor').checked) effContL -= 80;
             updateCapacityIllustration(result, maxWgt, effContL, effContW);
         }
+
         drawAdvancedMixedCanvas(result.placedItems, contL, contW, optFrontCurve, titleText, useAirbag, useLashing);
     }
 
@@ -1198,26 +1203,50 @@
         }
 
         let minX = Infinity; let maxX = 0; let minY = Infinity; let maxY = 0;
-        placedItems.forEach(item => { if (item.x < minX) minX = item.x; if (item.x + item.l > maxX) maxX = item.x + item.l; if (item.y < minY) minY = item.y; if (item.y + item.w > maxY) maxY = item.y + item.w; });
+        placedItems.forEach(item => {
+            if (item.x < minX) minX = item.x;
+            if (item.x + item.l > maxX) maxX = item.x + item.l;
+            if (item.y < minY) minY = item.y;
+            if (item.y + item.w > maxY) maxY = item.y + item.w;
+        });
+        
         if (placedItems.length === 0) { minX = 0; maxX = 0; minY = 0; maxY = 0; }
 
-        let totalLoadL = maxX - minX; let totalLoadW = maxY - minY; let offsetY = ((contW * scale) - (totalLoadW * scale)) / 2; 
+        let totalLoadL = maxX - minX; 
+        let totalLoadW = maxY - minY; 
+
+        let offsetY = ((contW * scale) - (totalLoadW * scale)) / 2; 
 
         if (useAirbag && contW - totalLoadW > 100 && placedItems.length > 0) {
             let airbagH = offsetY - (2*scale); 
             if (airbagH > 5) {
-                ctx.fillStyle = 'rgba(56, 189, 248, 0.3)'; ctx.fillRect(startX, cy + 2, totalLoadL*scale, airbagH); ctx.fillRect(startX, cy + (contW*scale) - airbagH - 2, totalLoadL*scale, airbagH);
-                ctx.fillStyle = '#0284c7'; ctx.font = 'bold 8px Inter'; ctx.textAlign = 'center'; ctx.fillText('HAVA YASTIĞI / TAKOZ', startX + (totalLoadL*scale)/2, cy + airbagH/2 + 4); ctx.fillText('HAVA YASTIĞI / TAKOZ', startX + (totalLoadL*scale)/2, cy + (contW*scale) - airbagH/2);
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.3)'; 
+                ctx.fillRect(startX, cy + 2, totalLoadL*scale, airbagH); 
+                ctx.fillRect(startX, cy + (contW*scale) - airbagH - 2, totalLoadL*scale, airbagH);
+                ctx.fillStyle = '#0284c7'; ctx.font = 'bold 8px Inter'; ctx.textAlign = 'center';
+                ctx.fillText('HAVA YASTIĞI / TAKOZ', startX + (totalLoadL*scale)/2, cy + airbagH/2 + 4); 
+                ctx.fillText('HAVA YASTIĞI / TAKOZ', startX + (totalLoadL*scale)/2, cy + (contW*scale) - airbagH/2);
             }
         }
 
         placedItems.forEach(item => {
-            let px = startX + item.x * scale; let py = cy + offsetY + (item.y - minY) * scale; let pL = item.l * scale; let pW = item.w * scale;
-            ctx.fillStyle = item.color || '#bae6fd'; ctx.fillRect(px, py, pL, pW); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1; ctx.strokeRect(px, py, pL, pW);
+            let px = startX + item.x * scale; 
+            let py = cy + offsetY + (item.y - minY) * scale;     
+            let pL = item.l * scale;
+            let pW = item.w * scale;
+
+            ctx.fillStyle = item.color || '#bae6fd'; 
+            ctx.fillRect(px, py, pL, pW);
+            ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 1;
+            ctx.strokeRect(px, py, pL, pW);
 
             if (item.palletBlocks) {
-                ctx.save(); ctx.translate(px, py); if (item.isRotated) { ctx.translate(pL, 0); ctx.rotate(Math.PI / 2); }
-                let bOffsetX = (((item.isRotated ? item.w : item.l) * scale) - (item.actL * scale)) / 2; let bOffsetY = (((item.isRotated ? item.l : item.w) * scale) - (item.actW * scale)) / 2;
+                ctx.save(); ctx.translate(px, py);
+                if (item.isRotated) { ctx.translate(pL, 0); ctx.rotate(Math.PI / 2); }
+
+                let loadTotalL = item.actL * scale; let loadTotalW = item.actW * scale; 
+                let origPatL = item.isRotated ? item.w : item.l; let origPatW = item.isRotated ? item.l : item.w; 
+                let bOffsetX = ((origPatL * scale) - loadTotalL) / 2; let bOffsetY = ((origPatW * scale) - loadTotalW) / 2;
                 ctx.translate(bOffsetX, bOffsetY);
 
                 item.palletBlocks.forEach(b => {
@@ -1236,19 +1265,29 @@
                 });
                 ctx.restore();
             } else {
-                ctx.beginPath(); if (item.isRotated) { ctx.moveTo(px + pL/2, py); ctx.lineTo(px + pL/2, py + pW); } else { ctx.moveTo(px, py + pW/2); ctx.lineTo(px + pL, py + pW/2); }
+                ctx.beginPath();
+                if (item.isRotated) { ctx.moveTo(px + pL/2, py); ctx.lineTo(px + pL/2, py + pW); } 
+                else { ctx.moveTo(px, py + pW/2); ctx.lineTo(px + pL, py + pW/2); }
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'; ctx.setLineDash([2, 2]); ctx.stroke(); ctx.setLineDash([]);
             }
 
-            let cx_item = px + pL/2; let cy_item = py + pW/2; let labelW = Math.min(pL - 4, 80); let labelH = Math.min(pW - 4, 30);
+            let cx_item = px + pL/2; let cy_item = py + pW/2;
+            let labelW = Math.min(pL - 4, 80); let labelH = Math.min(pW - 4, 30);
+            
             if (labelW > 25 && labelH > 15) {
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; ctx.shadowColor = 'rgba(0,0,0,0.2)'; ctx.shadowBlur = 4;
                 ctx.fillRect(cx_item - labelW/2, cy_item - labelH/2, labelW, labelH); ctx.shadowBlur = 0;
                 ctx.strokeStyle = item.isPartial ? '#e11d48' : '#94a3b8'; ctx.lineWidth = item.isPartial ? 2 : 1; ctx.strokeRect(cx_item - labelW/2, cy_item - labelH/2, labelW, labelH);
+
+                let shortSku = item.id.length > 10 ? item.id.substring(0, 8) + '..' : item.id;
                 ctx.fillStyle = '#0f172a'; ctx.font = 'bold 8px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                ctx.fillText(item.id.length > 10 ? item.id.substring(0, 8) + '..' : item.id, cx_item, cy_item - 6);
-                if (item.isPartial) { ctx.fillStyle = '#e11d48'; ctx.font = '900 10px Inter'; ctx.fillText(`! ${item.boxes} Koli`, cx_item, cy_item + 6); } 
-                else { ctx.fillStyle = '#16a34a'; ctx.font = '900 10px Inter'; ctx.fillText(`${item.boxes} Koli`, cx_item, cy_item + 6); }
+                ctx.fillText(shortSku, cx_item, cy_item - 6);
+
+                if (item.isPartial) {
+                    ctx.fillStyle = '#e11d48'; ctx.font = '900 10px Inter'; ctx.fillText(`! ${item.boxes} Koli`, cx_item, cy_item + 6);
+                } else {
+                    ctx.fillStyle = '#16a34a'; ctx.font = '900 10px Inter'; ctx.fillText(`${item.boxes} Koli`, cx_item, cy_item + 6);
+                }
             } else {
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctx.fillRect(cx_item - 15, cy_item - 8, 30, 16);
                 ctx.fillStyle = item.isPartial ? '#e11d48' : '#0f172a'; ctx.font = '900 9px Inter'; ctx.textAlign='center'; ctx.textBaseline='middle';
