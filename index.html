@@ -55,13 +55,18 @@
     
     <script>
         // ==========================================
-        // SUPABASE CONNECTION (AUTOMATICALLY CONFIGURED)
+        // SUPABASE CONNECTION (OFFLINE SAFE MODE)
         // ==========================================
-        const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
+        const SUPABASE_URL = 'PASTE_YOUR_SUPABASE_URL_HERE';
+        const SUPABASE_KEY = 'PASTE_YOUR_SUPABASE_ANON_KEY_HERE';
         
-        const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+        let supabase = null;
         let currentUser = null;
+
+        // Yalnızca geçerli bir URL girildiyse Supabase'i başlat (Çökmeyi engeller)
+        if (SUPABASE_URL !== 'PASTE_YOUR_SUPABASE_URL_HERE' && SUPABASE_URL.startsWith('http')) {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
     </script>
 </head>
 <body class="p-0 md:p-4 h-screen flex flex-col">
@@ -294,7 +299,7 @@
     // ==========================================
     // AUTH & SUPABASE CLOUD SYNC LOGIC
     // ==========================================
-    if (window.supabase) {
+    if (supabase) {
         supabase.auth.getSession().then(({ data: { session } }) => { if (session) handleAuthChange(session.user); });
         supabase.auth.onAuthStateChange((_event, session) => { handleAuthChange(session?.user || null); });
     }
@@ -313,7 +318,7 @@
     }
 
     async function handleRegister() {
-        if(!supabase) return alert("Supabase API bilgileri eksik!");
+        if(!supabase) return alert("Supabase API bilgileri eksik veya URL geçersiz. Lütfen kod içerisine doğru bağlantı anahtarlarını yapıştırın.");
         const email = document.getElementById('authEmail').value;
         const password = document.getElementById('authPassword').value;
         if(!email || !password) return alert("Email ve şifre gereklidir.");
@@ -323,7 +328,7 @@
     }
 
     async function handleLogin() {
-        if(!supabase) return alert("Supabase API bilgileri eksik!");
+        if(!supabase) return alert("Supabase API bilgileri eksik veya URL geçersiz.");
         const email = document.getElementById('authEmail').value;
         const password = document.getElementById('authPassword').value;
         if(!email || !password) return alert("Email ve şifre gereklidir.");
@@ -615,7 +620,6 @@
             if (boxes <= 0) continue;
             const sku = skuDatabase[rowsUI[i].querySelector('.mixed-sku').value];
             if (baseType === 'floor') {
-                // Kat sayısı veritabanındaki sınıra (maxLayers) sadık kalır
                 let physMaxLayers = Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H));
                 if(physMaxLayers <= 0) physMaxLayers = 1;
                 usedArea += Math.ceil(boxes / physMaxLayers) * (sku.L * sku.W);
@@ -928,9 +932,9 @@
         let skuDetailsHtml = '';
         for(let tg of sortedGroups) {
             let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let safeSkuId = sku.replace(/\W/g, ''); // For canvas ID
+            let safeSkuId = sku.replace(/\W/g, ''); 
             skuDetailsHtml += `
-                <li class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm mt-2">
+                <li class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm mt-2 print-break-inside-avoid">
                     <div class="flex items-center gap-2 mb-2"><span class="w-4 h-4 inline-block rounded border border-slate-300" style="background-color:${tg.color}"></span> <strong class="text-indigo-800 text-[13px]">${sku}</strong></div>
                     <div class="grid grid-cols-2 gap-2 text-xs">
                         <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">Hazırlanacak Tam Ünite</span> <strong class="text-slate-800 text-sm">${tg.items - tg.partials} Adet</strong></div>
@@ -939,7 +943,6 @@
                         ${tg.partials > 0 ? `<div class="col-span-2 bg-rose-50 text-rose-700 p-2 rounded border border-rose-200 mt-1">⚠️ <strong>Ağırlık Limiti:</strong> Kalan ${tg.partials} adet ünite tam dizilmeyecektir! Sadece 2D Planda (kırmızı etiketli) yazan koli adedi kadar koyun!</div>` : ''}
                     </div>
                     
-                    <!-- NEW: PALLET PREVIEW DIAGRAM -->
                     <div class="col-span-2 flex items-center gap-4 mt-3 border-t border-slate-100 pt-3">
                         <div class="w-24 h-24 flex-shrink-0">
                             <canvas id="pallet_canvas_${safeSkuId}" width="96" height="96" class="w-full h-full object-contain bg-slate-50 border border-slate-200 rounded"></canvas>
@@ -978,7 +981,6 @@
             </div>
         `;
 
-        // YENİ: Palet dizilim çizimlerini HTML oluşturulduktan sonra render et
         for(let tg of sortedGroups) {
             let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
             let safeSkuId = sku.replace(/\W/g, '');
