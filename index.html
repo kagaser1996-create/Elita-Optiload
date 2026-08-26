@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elita OptiLoad | Saha & Lojistik Planlayıcısı</title>
+    <title>Elita OptiLoad | Akıllı Saha & Yükleme Planlayıcısı</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -20,6 +22,7 @@
         .tab-btn { padding: 0.75rem 1.5rem; font-weight: 600; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s; }
         .tab-btn.active { border-bottom-color: #0284c7; color: #0284c7; background: white; }
         
+        /* 2-PAGE PRINT OPTIMIZATION CSS */
         @media print {
             @page { size: A4 landscape; margin: 8mm; }
             html, body { height: auto !important; overflow: visible !important; background-color: white !important; font-size: 9pt; display: block !important; }
@@ -46,17 +49,35 @@
             .print-page-2 { page-break-before: always !important; break-before: page !important; margin-top: 0 !important; }
         }
     </style>
+    
+    <script>
+        // ==========================================
+        // SUPABASE CONNECTION
+        // ==========================================
+        const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
+        
+        let supabaseClient = null;
+        let currentUser = null;
+        let currentUserProfile = null;
+        let authMode = 'login';
+        let lastComputedResult = null;
+        let currentSimulationId = null;
+
+        if (window.supabase) {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
+    </script>
 </head>
 <body class="p-0 md:p-4 h-screen flex flex-col">
 
-<!-- 1. AUTHENTICATION MODAL -->
-<div id="authModal" class="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border-t-8 border-sky-500">
-        <div class="flex items-center gap-3 mb-2 justify-center">
-            <div class="w-10 h-10 bg-sky-500 rounded flex items-center justify-center font-black text-white text-2xl">E</div>
-            <h2 class="text-3xl font-black text-slate-800 tracking-tight">Elita <span class="font-light text-sky-500">OptiLoad</span></h2>
+<!-- MODALS FOR AUTH & SAVING -->
+<div id="authModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center px-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-black text-slate-800" id="authModalTitle">Kullanıcı Girişi</h3>
+            <button onclick="closeModal('authModal')" class="text-slate-400 hover:text-rose-500 font-bold">X</button>
         </div>
-        <p class="text-center text-slate-500 font-bold mb-6 uppercase text-[11px] tracking-widest">Saha & Lojistik Giriş Paneli</p>
         
         <div class="flex border-b border-slate-200 mb-6">
             <button id="authTabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2 font-bold text-sm border-b-2 border-sky-500 text-sky-600">Giriş Yap</button>
@@ -77,23 +98,14 @@
             </div>
         </div>
 
-        <div class="space-y-3">
-            <div>
-                <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">E-Posta</label>
-                <input type="email" id="authEmail" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none">
-            </div>
-            <div>
-                <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Şifre</label>
-                <input type="password" id="authPassword" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none">
-            </div>
-        </div>
-
-        <button id="authSubmitBtn" onclick="handleAuthSubmit()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-xl transition-all shadow-md mt-6 text-sm">Giriş Yap</button>
+        <div class="input-group mb-3"><label>Email</label><input type="text" id="authEmail" placeholder="ornek@sirket.com"></div>
+        <div class="input-group mb-4"><label>Şifre</label><input type="password" id="authPassword" placeholder="••••••••"></div>
+        
+        <button id="authSubmitBtn" onclick="handleAuthSubmit()" class="w-full bg-slate-900 text-white font-bold py-2 rounded-lg mb-2 hover:bg-slate-800">Giriş Yap</button>
         <p id="authErrorMsg" class="text-rose-500 text-xs font-bold text-center mt-3 hidden"></p>
     </div>
 </div>
 
-<!-- 2. INBOX / DASHBOARD MODAL -->
 <div id="adminDashboardModal" class="hidden fixed inset-0 bg-slate-900/80 z-40 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-[1000px] w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
         <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
@@ -122,7 +134,6 @@
     </div>
 </div>
 
-<!-- 3. ALARM MODAL -->
 <div id="alarmModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center no-print px-4">
     <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full border-t-8 border-rose-500 transform transition-all">
         <div class="flex items-center gap-3 mb-3">
@@ -134,9 +145,9 @@
     </div>
 </div>
 
-<!-- TOP NAVIGATION BAR -->
+<!-- NAVIGATION BAR -->
 <nav class="bg-slate-900 text-white shadow-md rounded-t-xl md:rounded-xl mx-auto max-w-[1400px] w-full z-10 relative no-print mb-4">
-    <div class="px-4 md:px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
+    <div class="px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
         <div class="flex items-center gap-3 w-full md:w-auto">
             <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center font-black text-xl tracking-tighter">E</div>
             <div>
@@ -144,35 +155,38 @@
                 <p class="text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Dinamik & Statik Saha Operasyon Planlayıcısı</p>
             </div>
         </div>
-
+        
         <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-            <div id="userProfileBadge" class="hidden items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs mr-2">
-                <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
-                <span id="userEmailLabel" class="text-slate-300 font-medium">user@example.com</span>
+            <div id="loggedOutView" class="flex gap-2">
+                <button onclick="openModal('authModal')" class="text-sm font-bold text-white hover:text-sky-300">Giriş Yap / Kaydol</button>
             </div>
 
-            <!-- Dashboard Button (Logistics & Admin) -->
-            <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
-                📥 Gelen Talepler
-            </button>
+            <div id="loggedInView" class="hidden flex items-center gap-2 flex-wrap">
+                <div id="userProfileBadge" class="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs mr-2">
+                    <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
+                    <span id="userEmailLabel" class="text-slate-300 font-medium">user@mail.com</span>
+                </div>
 
-            <!-- Sales Submission Button -->
-            <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
-                ↗ Lojistik Onayına Gönder
-            </button>
+                <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
+                    📥 Gelen Talepler
+                </button>
 
-            <!-- Logistics Approval Button -->
-            <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
-                ✓ Nihai Planı Onayla
-            </button>
+                <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                    ↗ Lojistik Onayına Gönder
+                </button>
 
-            <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-1.5">
-                Saha Formunu Yazdır
-            </button>
+                <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                    ✓ Nihai Planı Onayla
+                </button>
 
-            <button onclick="handleLogout()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 px-3 py-2 rounded-lg text-xs font-bold transition-all">
-                Çıkış
-            </button>
+                <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-1.5">
+                    Saha Formunu Yazdır
+                </button>
+
+                <button onclick="handleLogout()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 px-3 py-2 rounded-lg text-xs font-bold transition-all ml-2">
+                    Çıkış
+                </button>
+            </div>
         </div>
     </div>
 </nav>
@@ -221,7 +235,7 @@
                     <label>Maks Tonaj (kg)</label>
                     <input type="number" id="maxWgt" value="25000" max="27800" class="bg-slate-50 text-rose-700 font-bold" oninput="if(this.value > 27800) this.value = 27800;" onchange="cascadeAdjustAll(); runEngine()">
                 </div>
-                <div class="input-group"><label title="Veritabanındaki maksimum istif sınırlarına göre hesaplanır.">Dökme Katı (İstif)</label><input type="text" value="SKU Limitine Göre" readonly class="!bg-indigo-50 !text-indigo-700 font-bold border-indigo-200 text-[10px] text-center"></div>
+                <div class="input-group"><label title="Veritabanındaki maksimum istif sınırlarına göre hesaplanır.">Dökme Katı (İstif)</label><input type="text" value="Zemine Yayılarak" readonly class="!bg-indigo-50 !text-indigo-700 font-bold border-indigo-200 text-[10px] text-center"></div>
             </div>
 
             <div class="input-group mb-3 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg hidden" id="targetBoxesGroup">
@@ -233,12 +247,12 @@
             <div class="input-group mb-3">
                 <select id="baseType" onchange="handleBaseChange(); cascadeAdjustAll(); runEngine();">
                     <option value="slipsheet">Slipsheet (Çekme)</option>
-                    <option value="pallet" selected>Ahşap Palet</option>
-                    <option value="floor">Dökme / Zemin Yükleme</option>
+                    <option value="pallet">Ahşap Palet</option>
+                    <option value="floor" selected>Dökme / Zemin Yükleme</option>
                 </select>
             </div>
 
-            <div id="palletDropdownGroup" class="input-group mb-3">
+            <div id="palletDropdownGroup" class="input-group mb-3" style="display:none;">
                 <select id="specificBaseSize" onchange="cascadeAdjustAll(); runEngine()">
                     <option value="auto">🌟 Otomatik Seçim (En Verimli)</option>
                     <option value="0">80x120 cm Euro Palet</option>
@@ -261,11 +275,11 @@
                 </label>
                 <label class="flex items-center gap-2 text-xs font-semibold text-sky-700 mb-2 cursor-pointer hover:bg-white p-1 rounded">
                     <input type="checkbox" id="optAirbag" checked class="w-4 h-4 text-sky-500" onchange="runEngine()">
-                    Hava Yastığı (Airbag) Kullan
+                    Hava Yastığı (Airbag) Göster
                 </label>
                 <label class="flex items-center gap-2 text-xs font-semibold text-orange-700 mb-2 cursor-pointer hover:bg-white p-1 rounded">
                     <input type="checkbox" id="optLashing" checked class="w-4 h-4 text-orange-500" onchange="runEngine()">
-                    Spanset (Lashing) Kullan
+                    Spanset (Lashing) Göster
                 </label>
             </div>
 
@@ -320,7 +334,7 @@
                 <p class="text-2xl font-black text-rose-600 leading-none" id="resWeight">-</p>
             </div>
             <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
-                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Yük Ünitesi</p>
+                <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Yük İstifi</p>
                 <p class="text-xl font-black text-slate-800 leading-none" id="resLoads">-</p>
             </div>
             <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
@@ -335,14 +349,14 @@
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col flex-grow min-h-[450px] print-break-inside-avoid relative print-page-2">
             <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 rounded-t-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 z-10 relative">
                 <span class="text-sm font-bold text-slate-700">İÇ ÖLÇÜYE GÖRE ALAN YÖNETİMİ (2D YUKARIDAN BAKIŞ)</span>
-                <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200" id="modeConfigLabel">Optimum Düzen</span>
+                <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200" id="modeConfigLabel">...</span>
             </div>
             
             <div id="mixedResultsTable" class="hidden p-4 border-b border-slate-200 bg-slate-50 z-10 relative">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs bg-white rounded border border-slate-200">
                         <thead class="bg-slate-100 border-b border-slate-200">
-                            <tr><th class="p-2">SKU (Öncelik Sırası)</th><th class="p-2">Plan Tipi</th><th class="p-2">Yüklenebilen Koli</th><th class="p-2">Sütun/Ünite</th><th class="p-2">Uyarı (Ağırlık Limiti)</th></tr>
+                            <tr><th class="p-2">SKU (Öncelik)</th><th class="p-2">Plan Tipi</th><th class="p-2">Yüklenebilen Koli</th><th class="p-2">İstif / Ünite</th><th class="p-2">Uyarı</th></tr>
                         </thead>
                         <tbody id="mixedResultsBody"></tbody>
                     </table>
@@ -358,66 +372,8 @@
 
 <script>
     // ==========================================
-    // ⚙️ SUPABASE AUTOMATIC KEYS
+    // AUTH & SUPABASE CLOUD SYNC LOGIC
     // ==========================================
-    const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
-    
-    let supabaseClient = null;
-    if (window.supabase) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    }
-
-    let currentUser = null;
-    let currentUserProfile = null;
-    let authMode = 'login';
-    let lastComputedResult = null;
-    let currentSimulationId = null; 
-
-    // --- SKU DATABASE ---
-    const skuDatabase = [
-        {name: "0,750*12 İNCEBELLİ", L: 262, W: 279, H: 278, Wt: 8.83, maxLayers: 9},
-        {name: "0,75*20 BÜKLÜM", L: 319, W: 402, H: 273, Wt: 14.69, maxLayers: 9},
-        {name: "0,85*12 YENİ VK BÜKLÜM", L: 232, W: 308, H: 267, Wt: 9.68, maxLayers: 9},
-        {name: "0,85*12 VK BÜKLÜM", L: 252, W: 332, H: 242, Wt: 10.50, maxLayers: 9},
-        {name: "0,9*12 VK BÜKLÜM", L: 252, W: 332, H: 252, Wt: 10.23, maxLayers: 9},
-        {name: "0,9*20 VK BÜKLÜM", L: 418, W: 332, H: 252, Wt: 17.05, maxLayers: 9},
-        {name: "1*20 İNCEBELLİ", L: 342, W: 417, H: 298, Wt: 19.73, maxLayers: 8},
-        {name: "1*12 İNCEBELLİ", L: 282, W: 317, H: 298, Wt: 11.95, maxLayers: 9},
-        {name: "2*6 İNCEBELLİ", L: 268, W: 297, H: 328, Wt: 11.81, maxLayers: 7},
-        {name: "1,8*6 İNCEBELLİ", L: 259, W: 284, H: 333, Wt: 10.72, maxLayers: 8},
-        {name: "1*20 VK BÜKLÜM", L: 332, W: 414, H: 271, Wt: 19.06, maxLayers: 8},
-        {name: "1*12 VK BÜKLÜM", L: 250, W: 332, H: 271, Wt: 11.69, maxLayers: 8},
-        {name: "1*15 VK BÜKLÜM", L: 250, W: 414, H: 271, Wt: 14.43, maxLayers: 8},
-        {name: "1*20 BÜKLÜM", L: 323, W: 404, H: 298, Wt: 19.63, maxLayers: 8},
-        {name: "1*15 BÜKLÜM", L: 242, W: 405, H: 298, Wt: 14.43, maxLayers: 8},
-        {name: "1*12 BÜKLÜM", L: 242, W: 324, H: 298, Wt: 11.70, maxLayers: 8},
-        {name: "2*6 BÜKLÜM", L: 219, W: 324, H: 326, Wt: 11.70, maxLayers: 7},
-        {name: "1,8*6 BÜKLÜM", L: 214, W: 317, H: 326, Wt: 10.60, maxLayers: 8},
-        {name: "1,5*6 KULPLU", L: 224, W: 272, H: 311, Wt: 9.13, maxLayers: 7},
-        {name: "1,8*6 KULPLU", L: 177, W: 394, H: 308, Wt: 10.80, maxLayers: 7},
-        {name: "1*12 KARE MARRE", L: 234, W: 304, H: 269, Wt: 11.66, maxLayers: 6},
-        {name: "3*6 YUVARLAK", L: 254, W: 379, H: 312, Wt: 17.63, maxLayers: 6},
-        {name: "3*6 KÖŞELİ", L: 254, W: 379, H: 338, Wt: 17.64, maxLayers: 6},
-        {name: "4*4 KARE", L: 264, W: 299, H: 315, Wt: 15.24, maxLayers: 6},
-        {name: "4*4 KAVANOZ", L: 344, W: 344, H: 252, Wt: 15.21, maxLayers: 6},
-        {name: "4,5*4 KARE", L: 264, W: 299, H: 345, Wt: 17.32, maxLayers: 6},
-        {name: "5*4 KUBBELİ*", L: 330, W: 330, H: 351, Wt: 19.42, maxLayers: 6},
-        {name: "5*4 KAVANOZ", L: 369, W: 369, H: 280, Wt: 19.75, maxLayers: 6},
-        {name: "5*4 YAPRAK", L: 279, W: 388, H: 345, Wt: 19.75, maxLayers: 6},
-        {name: "5*4 KARE", L: 264, W: 299, H: 375, Wt: 19.23, maxLayers: 6},
-        {name: "5 L Tin Can (Teneke) 4'lü", L: 320, W: 248, H: 327, Wt: 19.84, maxLayers: 4},
-        {name: "5 L Tin Can (Teneke) 4'lü+Koli", L: 320, W: 248, H: 327, Wt: 20.27, maxLayers: 4},
-        {name: "10 L Tin Can (Teneke)", L: 205, W: 205, H: 304, Wt: 9.81, maxLayers: 5},
-        {name: "16 L Tin Can (Teneke)", L: 244, W: 244, H: 323, Wt: 15.59, maxLayers: 4},
-        {name: "18 L Tin Can (Teneke)", L: 244, W: 244, H: 359, Wt: 17.43, maxLayers: 4},
-        {name: "20 L Jerry Can (Bidon)", L: 244, W: 291, H: 393, Wt: 19.20, maxLayers: 4} 
-    ];
-
-    let currentMode = 'single';
-    const colorMap = ['#38bdf8', '#4ade80', '#facc15', '#c084fc', '#f472b6', '#fb923c', '#94a3b8'];
-
-    // --- AUTHENTICATION & ROLE LOGIC ---
     if (supabaseClient) {
         supabaseClient.auth.getSession().then(({ data: { session } }) => { if (session) handleAuthChange(session.user); });
         supabaseClient.auth.onAuthStateChange((_event, session) => { handleAuthChange(session?.user || null); });
@@ -448,104 +404,53 @@
     function handleAuthChange(user) {
         currentUser = user;
         if (user) {
+            document.getElementById('loggedOutView').classList.add('hidden');
+            document.getElementById('loggedInView').classList.remove('hidden');
             loadUserProfile(user.id);
-            document.getElementById('authModal').classList.add('hidden');
+            closeModal('authModal');
         } else {
-            document.getElementById('authModal').classList.remove('hidden');
+            document.getElementById('loggedOutView').classList.remove('hidden');
+            document.getElementById('loggedInView').classList.add('hidden');
         }
     }
 
     async function handleAuthSubmit() {
-        if(!supabaseClient) return alert("Supabase API bilgileri eksik!");
+        if(!supabaseClient) return alert("Supabase bağlantısı kurulamadı!");
         const email = document.getElementById('authEmail').value.trim();
         const password = document.getElementById('authPassword').value;
         const err = document.getElementById('authErrorMsg');
         const submitBtn = document.getElementById('authSubmitBtn');
 
-        if (!email || !password) {
-            err.innerText = "Lütfen e-posta ve şifrenizi girin.";
-            err.classList.remove('hidden');
-            return;
-        }
+        if (!email || !password) { err.innerText = "Lütfen e-posta ve şifrenizi girin."; err.classList.remove('hidden'); return; }
 
-        err.classList.add('hidden');
-        submitBtn.innerText = "İşlem yapılıyor...";
-        submitBtn.disabled = true;
+        err.classList.add('hidden'); submitBtn.innerText = "İşlem yapılıyor..."; submitBtn.disabled = true;
 
         if (authMode === 'login') {
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) {
-                err.innerText = "Giriş hatası: Bilgilerinizi kontrol edin.";
-                err.classList.remove('hidden');
-                submitBtn.innerText = "Giriş Yap";
-                submitBtn.disabled = false;
+                err.innerText = "Giriş hatası: Bilgilerinizi kontrol edin."; err.classList.remove('hidden');
+                submitBtn.innerText = "Giriş Yap"; submitBtn.disabled = false;
             } else {
-                currentUser = data.user;
-                await loadUserProfile(data.user.id);
+                currentUser = data.user; await loadUserProfile(data.user.id);
                 document.getElementById('authModal').classList.add('hidden');
             }
         } else {
             const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
             let role = document.getElementById('regRole').value;
 
-            if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') {
-                role = 'admin';
-            }
+            if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') { role = 'admin'; }
 
-            const { data, error } = await supabaseClient.auth.signUp({
-                email,
-                password,
-                options: { data: { full_name: fullName, role: role } }
+            const { data, error } = await supabaseClient.auth.signUp({ 
+                email, password, options: { data: { full_name: fullName, role: role } } 
             });
 
             if (error) {
-                err.innerText = "Kayıt hatası: " + error.message;
-                err.classList.remove('hidden');
-                submitBtn.innerText = "Kullanıcı Oluştur ve Başla";
-                submitBtn.disabled = false;
+                err.innerText = "Kayıt hatası: " + error.message; err.classList.remove('hidden');
+                submitBtn.innerText = "Kullanıcı Oluştur ve Başla"; submitBtn.disabled = false;
             } else {
-                currentUser = data.user;
-                await loadUserProfile(data.user.id);
+                currentUser = data.user; await loadUserProfile(data.user.id);
                 document.getElementById('authModal').classList.add('hidden');
             }
-        }
-    }
-
-    async function loadUserProfile(userId) {
-        const { data } = await supabaseClient.from('profiles').select('*').eq('id', userId).single();
-        currentUserProfile = data || { role: 'sales', email: currentUser.email };
-        applyRolePermissions();
-    }
-
-    function applyRolePermissions() {
-        const role = currentUserProfile.role || 'sales';
-        const roleBadge = document.getElementById('userRoleBadge');
-        
-        const btnSales = document.getElementById('btnSubmitSales');
-        const btnLogistics = document.getElementById('btnSubmitLogistics');
-        const dashBtn = document.getElementById('btnDashboard');
-        
-        document.getElementById('userProfileBadge').classList.remove('hidden');
-        document.getElementById('userProfileBadge').classList.add('flex');
-        document.getElementById('userEmailLabel').innerText = currentUserProfile.full_name || currentUser.email;
-
-        btnSales.classList.add('hidden');
-        btnLogistics.classList.add('hidden');
-        dashBtn.classList.add('hidden');
-
-        if (role === 'logistics') {
-            roleBadge.innerText = "LOJİSTİK & AR-GE";
-            roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-sky-600 text-white uppercase";
-            btnLogistics.classList.remove('hidden'); btnLogistics.classList.add('flex');
-            dashBtn.classList.remove('hidden'); dashBtn.classList.add('flex');
-        } else if (role === 'admin') {
-            roleBadge.innerText = "YÖNETİCİ";
-            roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-indigo-600 text-white uppercase";
-            dashBtn.classList.remove('hidden'); dashBtn.classList.add('flex');
-        } else {
-            roleBadge.innerText = "SATIŞ EKİBİ";
-            roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-amber-600 text-white uppercase";
-            btnSales.classList.remove('hidden'); btnSales.classList.add('flex');
         }
     }
 
@@ -642,7 +547,6 @@
         }
     }
 
-    // --- DASHBOARD (INBOX) ---
     async function openDashboard() {
         document.getElementById('adminDashboardModal').classList.remove('hidden');
         const loading = document.getElementById('dashboardLoading');
@@ -696,6 +600,9 @@
     
     function closeDashboard() { document.getElementById('adminDashboardModal').classList.add('hidden'); }
 
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
     function init() {
         const select = document.getElementById('skuSelect');
         skuDatabase.forEach((sku, idx) => select.options.add(new Option(`${sku.name} (${sku.L}x${sku.W}x${sku.H})`, idx)));
@@ -705,11 +612,6 @@
         addMixedRowWithCount(29, 0); 
         
         updateVehicleDims(); handleBaseChange(); distributeEvenly();
-    }
-
-    function showAlert(msg) {
-        document.getElementById('alarmMessage').innerText = msg;
-        document.getElementById('alarmModal').classList.remove('hidden');
     }
 
     function switchTab(mode) {
@@ -725,7 +627,8 @@
     function handleBaseChange() {
         const bt = document.getElementById('baseType').value;
         const palletGroup = document.getElementById('palletDropdownGroup');
-        palletGroup.style.display = (bt === 'floor') ? 'none' : 'block'; 
+        if (bt === 'floor') palletGroup.style.display = 'none'; 
+        else palletGroup.style.display = 'block'; 
     }
 
     function populateSKU() {
@@ -823,8 +726,9 @@
         let rowDiv = changedElement.closest('.mixed-row'); let rows = Array.from(document.querySelectorAll('.mixed-row'));
         let startIndex = rows.indexOf(rowDiv);
         for(let i = startIndex + 1; i < rows.length; i++) {
-            let inputField = rows[i].querySelector('.mixed-val');
-            let maxAllowed = getRemainingMaxBoxesForSKU(rows[i].querySelector('.mixed-sku').value, i);
+            let r = rows[i];
+            let inputField = r.querySelector('.mixed-val');
+            let maxAllowed = getRemainingMaxBoxesForSKU(r.querySelector('.mixed-sku').value, i);
             if ((parseInt(inputField.value) || 0) > maxAllowed) inputField.value = maxAllowed;
         }
     }
@@ -912,29 +816,129 @@
         if (currentMode === 'single') {
             const skuObj = skuDatabase[document.getElementById('skuSelect').value]; titleText = `Tekil Yük: ${skuObj.name}`;
             document.getElementById('printSkuName').innerText = skuObj.name;
-            let targetBoxes = parseInt(document.getElementById('targetBoxes').value) || 999999; 
+            let targetBoxes = parseInt(document.getElementById('targetBoxes').value) || 0; 
 
             if (baseType === 'floor') {
                 let physMaxLayers = Math.min(skuObj.maxLayers, Math.floor((contH - 20) / skuObj.H));
-                itemsToPack.push({ id: skuObj.name, priority: 0, l: skuObj.L, w: skuObj.W, h: skuObj.H, boxes: physMaxLayers, boxesPerUnit: physMaxLayers, boxWt: skuObj.Wt, wgt: physMaxLayers * skuObj.Wt, isPartial: false, area: skuObj.L * skuObj.W, palletBlocks: [{x: 0, y: 0, l: skuObj.L, w: skuObj.W, rows: 1, cols: 1}], actL: skuObj.L, actW: skuObj.W, verticalStacks: 1, patternName: 'Zemin Sütun', color: colorMap[0], count: Math.ceil(targetBoxes / physMaxLayers) });
+                if (physMaxLayers <= 0) physMaxLayers = 1;
+                
+                let c1 = Math.floor(effContW / skuObj.W); let r1 = Math.floor(effContL / skuObj.L);
+                let c2 = Math.floor(effContW / skuObj.L); let r2 = Math.floor(effContL / skuObj.W);
+                let isRotated = (c2 * r2) > (c1 * r1);
+                let cols = isRotated ? c2 : c1;
+                let maxRows = isRotated ? r2 : r1;
+                let actualBoxW = isRotated ? skuObj.L : skuObj.W;
+                let actualBoxL = isRotated ? skuObj.W : skuObj.L;
+                
+                let maxBoxesByWgt = Math.floor(maxWgt / skuObj.Wt);
+                let maxBoxesByVol = cols * maxRows * physMaxLayers;
+                let realisticTarget = targetBoxes > 0 ? Math.min(targetBoxes, maxBoxesByWgt) : Math.min(maxBoxesByVol, maxBoxesByWgt);
+                
+                let minLayersNeeded = Math.ceil(realisticTarget / (cols * maxRows));
+                let activeMaxLayers = Math.min(physMaxLayers, Math.max(1, minLayersNeeded));
+
+                let remaining = realisticTarget;
+                let currentLayer = 0;
+                let boxesPerRow = new Array(maxRows).fill(0);
+                
+                while (remaining > 0 && currentLayer < activeMaxLayers) {
+                    for (let r = 0; r < maxRows; r++) {
+                        if (remaining === 0) break;
+                        let toAdd = Math.min(cols, remaining);
+                        boxesPerRow[r] += toAdd;
+                        remaining -= toAdd;
+                    }
+                    currentLayer++;
+                }
+
+                for (let r = 0; r < maxRows; r++) {
+                    if (boxesPerRow[r] > 0) {
+                        let rowBoxCount = boxesPerRow[r];
+                        let rowLayers = Math.ceil(rowBoxCount / cols);
+                        let blockW = cols * actualBoxW;
+                        let blockL = actualBoxL;
+                        
+                        itemsToPack.push({
+                            id: skuObj.name, priority: 0, l: blockL, w: blockW, h: skuObj.H, 
+                            boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: skuObj.Wt, wgt: rowBoxCount * skuObj.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
+                            palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', color: colorMap[0],
+                            layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, count: 1
+                        });
+                    }
+                }
             } else {
                 let pConfig = getBestPalletConfig(skuObj, baseType, contH, maxWgt);
-                if(pConfig) itemsToPack.push({ id: skuObj.name, priority: 0, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxes: pConfig.boxesPerLoad, boxesPerUnit: pConfig.boxesPerLoad, boxWt: skuObj.Wt, wgt: (pConfig.boxesPerLoad * skuObj.Wt) + (baseType==='pallet'?25:0), isPartial: false, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, color: colorMap[0], count: Math.ceil(targetBoxes / pConfig.boxesPerLoad) });
+                if(pConfig) {
+                    let maxBoxesByWgt = Math.floor(maxWgt / skuObj.Wt);
+                    let maxBoxesByVol = pConfig.loads * pConfig.boxesPerLoad;
+                    let realisticTarget = targetBoxes > 0 ? Math.min(targetBoxes, maxBoxesByWgt) : maxBoxesByWgt;
+                    
+                    let pallets = Math.ceil(realisticTarget / pConfig.boxesPerLoad);
+                    for(let k=0; k<pallets; k++) {
+                        let b = Math.min(pConfig.boxesPerLoad, realisticTarget - (k*pConfig.boxesPerLoad));
+                        itemsToPack.push({
+                            id: skuObj.name, priority: 0, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, 
+                            boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: skuObj.Wt, wgt: (b * skuObj.Wt) + (baseType==='pallet'?25:0), 
+                            isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW,
+                            palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, 
+                            verticalStacks: 1, patternName: pConfig.boxPatternName, color: colorMap[0], count: 1
+                        });
+                    }
+                }
             }
         } else {
             titleText = "Karma Yük (Sıralı Öncelik)"; document.getElementById('printSkuName').innerText = "Sıralı Karma Liste";
             
             document.querySelectorAll('.mixed-row').forEach((r, idx) => {
+                let skuIdx = r.querySelector('.mixed-sku').value;
                 let targetBoxes = parseFloat(r.querySelector('.mixed-val').value) || 0; if(targetBoxes <= 0) return;
-                const sku = skuDatabase[r.querySelector('.mixed-sku').value]; let rColor = colorMap[idx % colorMap.length];
+                const sku = skuDatabase[skuIdx]; let rColor = colorMap[idx % colorMap.length];
                 
                 if (baseType === 'floor') {
                     let physMaxLayers = Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H));
-                    let fullColumns = Math.floor(targetBoxes / physMaxLayers); let remBoxes = targetBoxes % physMaxLayers;
-                    let blocks = [{x: 0, y: 0, l: sku.L, w: sku.W, rows: 1, cols: 1}]; 
+                    if (physMaxLayers <= 0) physMaxLayers = 1;
+
+                    let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
+                    let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
+                    let floorFit = Math.max(c1 * r1, c2 * r2);
+                    let isRotated = (c2 * r2) > (c1 * r1);
+                    let cols = isRotated ? c2 : c1;
+                    let maxRows = isRotated ? r2 : r1;
+                    let actualBoxW = isRotated ? sku.L : sku.W;
+                    let actualBoxL = isRotated ? sku.W : sku.L;
+
+                    let minLayersNeeded = Math.ceil(targetBoxes / (cols * maxRows));
+                    let activeMaxLayers = Math.min(physMaxLayers, Math.max(1, minLayersNeeded));
+
+                    let remaining = targetBoxes;
+                    let currentLayer = 0;
+                    let boxesPerRow = new Array(maxRows).fill(0);
                     
-                    if(fullColumns > 0) itemsToPack.push({ id: sku.name, priority: idx, count: fullColumns, l: sku.L, w: sku.W, h: sku.H, boxes: physMaxLayers, boxesPerUnit: physMaxLayers, boxWt: sku.Wt, wgt: physMaxLayers * sku.Wt, isPartial: false, area: sku.L * sku.W, palletBlocks: blocks, actL: sku.L, actW: sku.W, verticalStacks: 1, patternName: 'Dökme Sütun', color: rColor });
-                    if(remBoxes > 0) itemsToPack.push({ id: sku.name, priority: idx, count: 1, l: sku.L, w: sku.W, h: sku.H, boxes: remBoxes, boxesPerUnit: physMaxLayers, boxWt: sku.Wt, wgt: remBoxes * sku.Wt, isPartial: true, area: sku.L * sku.W, palletBlocks: blocks, actL: sku.L, actW: sku.W, verticalStacks: 1, patternName: 'Dökme Sütun', color: rColor });
+                    while (remaining > 0 && currentLayer < activeMaxLayers) {
+                        for (let rx = 0; rx < maxRows; rx++) {
+                            if (remaining === 0) break;
+                            let toAdd = Math.min(cols, remaining);
+                            boxesPerRow[rx] += toAdd;
+                            remaining -= toAdd;
+                        }
+                        currentLayer++;
+                    }
+
+                    for (let rx = 0; rx < maxRows; rx++) {
+                        if (boxesPerRow[rx] > 0) {
+                            let rowBoxCount = boxesPerRow[rx];
+                            let rowLayers = Math.ceil(rowBoxCount / cols);
+                            let blockW = cols * actualBoxW;
+                            let blockL = actualBoxL;
+                            
+                            itemsToPack.push({
+                                id: sku.name, priority: idx, count: 1, l: blockL, w: blockW, h: sku.H, 
+                                boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
+                                palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', color: rColor,
+                                layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers
+                            });
+                        }
+                    }
                 } else {
                     let pConfig = getBestPalletConfig(sku, baseType, contH, maxWgt);
                     if(pConfig) {
@@ -999,7 +1003,7 @@
 
             if (bestNode.rectIdx !== -1) {
                 let pL = bestNode.isRotated ? item.w : item.l; let pW = bestNode.isRotated ? item.l : item.w;
-                placedItems.push({ x: bestNode.x, y: bestNode.y, l: pL, w: pW, id: item.id, boxes: item.boxes, boxesPerUnit: item.boxesPerUnit, wgt: item.wgt, isPartial: item.isPartial, isRotated: bestNode.isRotated, palletBlocks: item.palletBlocks, actL: item.actL, actW: item.actW, verticalStacks: item.verticalStacks, patternName: item.patternName, color: item.color, priority: item.priority });
+                placedItems.push({ x: bestNode.x, y: bestNode.y, l: pL, w: pW, id: item.id, boxes: item.boxes, displayLayers: item.displayLayers, boxesPerUnit: item.boxesPerUnit, wgt: item.wgt, isPartial: item.isPartial, isRotated: bestNode.isRotated, palletBlocks: item.palletBlocks, actL: item.actL, actW: item.actW, verticalStacks: item.verticalStacks, patternName: item.patternName, color: item.color, priority: item.priority, layoutCols: item.layoutCols, layoutRows: item.layoutRows, layoutLayers: item.layoutLayers });
                 totalWgt += item.wgt; totalBoxes += item.boxes;
                 splitFreeRects(freeRects, bestNode.x, bestNode.y, pL, pW);
                 if (item.isPartial) break; 
@@ -1049,14 +1053,10 @@
         const ctx = canvas.getContext('2d');
         const pad = 10;
         
-        let patL, patW;
-        if (baseType === 'floor') {
-            patL = item.palletBlocks[0].l * item.palletBlocks[0].cols;
-            patW = item.palletBlocks[0].w * item.palletBlocks[0].rows;
-        } else {
-            patL = item.isRotated ? item.w : item.l;
-            patW = item.isRotated ? item.l : item.w;
-        }
+        let loadW = item.palletBlocks[0].cols * item.palletBlocks[0].w;
+        let loadL = item.palletBlocks[0].rows * item.palletBlocks[0].l;
+        let patW = baseType === 'floor' ? loadW : (item.isRotated ? item.l : item.w);
+        let patL = baseType === 'floor' ? loadL : (item.isRotated ? item.w : item.l);
 
         const scale = Math.min((canvas.width - pad*2) / patL, (canvas.height - pad*2) / patW);
         const cx = (canvas.width - (patL * scale)) / 2;
@@ -1069,9 +1069,14 @@
             ctx.strokeRect(cx, cy, patL * scale, patW * scale);
         }
 
-        ctx.save(); ctx.translate(cx, cy);
+        ctx.save();
+        let bOffsetX = cx + ((patL * scale) - (loadL * scale)) / 2;
+        let bOffsetY = cy + ((patW * scale) - (loadW * scale)) / 2;
+        ctx.translate(bOffsetX, bOffsetY);
+
         item.palletBlocks.forEach(b => {
-            let mBL = b.l * scale; let mBW = b.w * scale; let bStartX = b.x * scale; let bStartY = b.y * scale;
+            let mBL = b.l * scale; let mBW = b.w * scale;
+            let bStartX = b.x * scale; let bStartY = b.y * scale;
             for (let r = 0; r < b.rows; r++) {
                 for (let c = 0; c < b.cols; c++) {
                     const bx = bStartX + (c * mBL); const by = bStartY + (r * mBW);
@@ -1087,7 +1092,7 @@
         document.getElementById('layerOptimizationInfo').style.display = 'block'; 
         document.getElementById('resTotalBoxes').innerText = result.totalBoxes.toLocaleString();
         document.getElementById('resWeight').innerText = `${result.totalWgt.toLocaleString(undefined, {maximumFractionDigits:1})} kg`;
-        document.getElementById('resLoads').innerText = `${result.placedItems.length} Ünite/Sütun`;
+        document.getElementById('resLoads').innerText = `${result.placedItems.length} İstif/Ünite`;
         
         let weightPct = Math.min(100, Math.round((result.totalWgt / maxWgt) * 100));
         let statusNode = document.getElementById('resStatus');
@@ -1096,17 +1101,24 @@
 
         let tableGroups = {};
         result.placedItems.forEach(p => {
-            if(!tableGroups[p.id]) tableGroups[p.id] = { boxes: 0, items: 0, partials: 0, patternName: p.patternName, boxesPerUnit: p.boxesPerUnit, color: p.color, priority: p.priority };
-            tableGroups[p.id].boxes += p.boxes; tableGroups[p.id].items++; if(p.isPartial) tableGroups[p.id].partials++;
+            let gKey = p.id + '_' + p.boxes;
+            if(!tableGroups[gKey]) tableGroups[gKey] = { boxes: 0, items: 0, partials: 0, patternName: p.patternName, boxesPerUnit: p.boxes, color: p.color, priority: p.priority, inst_W: p.inst_W, inst_L: p.inst_L };
+            tableGroups[gKey].boxes += p.boxes; tableGroups[gKey].items++;
+            if(p.isPartial) tableGroups[gKey].partials++;
         });
 
-        let sortedGroups = Object.values(tableGroups).sort((a,b) => a.priority - b.priority);
+        let sortedGroups = Object.values(tableGroups).sort((a,b) => {
+            if(a.priority !== b.priority) return a.priority - b.priority;
+            return b.boxesPerUnit - a.boxesPerUnit;
+        });
+        
         let tbody = document.getElementById('mixedResultsBody'); tbody.innerHTML = '';
+        
         if (currentMode === 'mixed' || currentMode === 'single') {
-            document.getElementById('mixedResultsTable').style.display = 'block';
             for(let tg of sortedGroups) {
-                let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-                let warning = tg.partials > 0 ? `<span class="text-rose-500 text-[10px] font-bold">Ağırlık Limiti: ${tg.partials} Sütun Eksik Kat!</span>` : '-';
+                let skuParts = Object.keys(tableGroups).find(k => tableGroups[k] === tg).split('_');
+                let sku = skuParts[0] + (baseType==='floor' ? ` (${tg.boxesPerUnit} İstif)` : '');
+                let warning = tg.partials > 0 ? `<span class="text-rose-500 text-[10px] font-bold">Ağırlık Limiti: ${tg.partials} Eksik Kat!</span>` : '-';
                 tbody.innerHTML += `<tr class="border-b"><td class="p-2 font-bold flex items-center gap-2"><span class="w-3 h-3 rounded" style="background-color:${tg.color}"></span> ${sku}</td><td class="p-2 text-slate-500">Planlandı</td><td class="p-2 font-black text-emerald-600">${tg.boxes}</td><td class="p-2">${tg.items} Adet</td><td class="p-2">${warning}</td></tr>`;
             }
         }
@@ -1117,29 +1129,43 @@
 
         let skuDetailsHtml = '';
         for(let tg of sortedGroups) {
-            let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let safeSkuId = sku.replace(/\W/g, ''); // For canvas ID
+            let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg).split('_')[0];
+            let safeSkuId = sku.replace(/\W/g, '') + '_' + tg.boxesPerUnit; 
+            
+            let floorInstHtml = "";
+            if (baseType === 'floor') {
+                floorInstHtml = `
+                    <div class="col-span-2 bg-indigo-50 p-2 rounded mt-1 border border-indigo-100">
+                        <span class="block text-indigo-700 text-[10px] uppercase font-bold mb-1">Araç İçi Genel Dizilim Yönü</span>
+                        <span class="text-xs text-slate-700 leading-tight">
+                            Araç Genişliğine (En): <strong>${tg.inst_W || '?'} koli</strong> yan yana<br>
+                            Araç Uzunluğuna (Boy): <strong>${tg.inst_L || '?'} koli</strong> arka arkaya<br>
+                            İstif Yüksekliği (Kat): <strong>${tg.boxesPerUnit} kat</strong> üst üste dizilecektir.
+                        </span>
+                    </div>
+                `;
+            }
+
             skuDetailsHtml += `
-                <li class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm mt-2">
+                <li class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm mt-2 print-break-inside-avoid">
                     <div class="flex items-center gap-2 mb-2"><span class="w-4 h-4 inline-block rounded border border-slate-300" style="background-color:${tg.color}"></span> <strong class="text-indigo-800 text-[13px]">${sku}</strong></div>
                     <div class="grid grid-cols-2 gap-2 text-xs">
-                        <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">Hazırlanacak Tam Ünite</span> <strong class="text-slate-800 text-sm">${tg.items - tg.partials} Adet</strong></div>
-                        <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">Ünite Başına Sabit Koli</span> <strong class="text-slate-800 text-sm">${tg.boxesPerUnit} Koli</strong></div>
+                        <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">Hazırlanacak Tam İstif</span> <strong class="text-slate-800 text-sm">${tg.items - tg.partials} Adet</strong></div>
+                        <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">İstif Başına Sabit Koli</span> <strong class="text-slate-800 text-sm">${tg.boxesPerUnit} Koli</strong></div>
                         <div class="col-span-2 bg-sky-50 p-2 rounded"><span class="block text-sky-700 text-[10px] uppercase">Dizilim Şekli / Tipi</span> <strong class="text-sky-900">${tg.patternName}</strong></div>
-                        ${tg.partials > 0 ? `<div class="col-span-2 bg-rose-50 text-rose-700 p-2 rounded border border-rose-200 mt-1">⚠️ <strong>Ağırlık Limiti:</strong> Kalan ${tg.partials} adet ünite tam dizilmeyecektir! Sadece 2D Planda (kırmızı etiketli) yazan koli adedi kadar koyun!</div>` : ''}
+                        ${tg.partials > 0 ? `<div class="col-span-2 bg-rose-50 text-rose-700 p-2 rounded border border-rose-200 mt-1">⚠️ <strong>Ağırlık Limiti:</strong> Kalan ${tg.partials} adet istif tam dizilmeyecektir! Sadece 2D Planda (kırmızı etiketli) yazan koli adedi kadar koyun!</div>` : ''}
+                        ${floorInstHtml}
                     </div>
                     
-                    <!-- NEW: PALLET PREVIEW DIAGRAM -->
                     <div class="col-span-2 flex items-center gap-4 mt-3 border-t border-slate-100 pt-3">
                         <div class="w-24 h-24 flex-shrink-0">
                             <canvas id="pallet_canvas_${safeSkuId}" width="96" height="96" class="w-full h-full object-contain bg-slate-50 border border-slate-200 rounded"></canvas>
                         </div>
                         <div class="text-[10px] text-slate-500">
-                            <strong class="text-slate-700 uppercase tracking-wider">Kat Dizilimi (Üstten Görünüm)</strong><br>
-                            İlk katı yandaki çizime göre yerleştirin. Üzerine belirtilen istif sayısına ulaşana kadar aynı düzeni veya kilitli (çapraz) düzeni tekrarlayın.
+                            <strong class="text-slate-700 uppercase tracking-wider">Taban (İlk Kat) Dizilimi</strong><br>
+                            Zemindeki ilk katı yandaki çizime göre yerleştirin. Üzerine belirtilen istif sayısına (${tg.boxesPerUnit} kat) ulaşana kadar aynı düzeni tekrarlayın.
                         </div>
                     </div>
-
                 </li>`;
         }
 
@@ -1150,12 +1176,12 @@
             <div class="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 mb-2 shadow-md">
                 <h4 class="font-black text-indigo-900 text-base mb-2">👷 ADIM ADIM SAHA OPERATÖR TALİMATI (${currentMode === 'single' ? 'TEKİL' : 'KARMA'} YÜKLEME)</h4>
                 <p class="text-[11px] text-indigo-800 mb-4 leading-relaxed font-semibold">Aracı güvenli ve eksiksiz yüklemek için aşağıdaki adımları sırasıyla uygulayın:</p>
-                <div class="mb-4"><h5 class="font-bold text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded">ADIM 1: ÜNİTELERİ/PALETLERİ HAZIRLAYIN</h5><ul class="space-y-1">${skuDetailsHtml}</ul></div>
+                <div class="mb-4"><h5 class="font-bold text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded">ADIM 1: İSTİFLERİ HAZIRLAYIN</h5><ul class="space-y-1">${skuDetailsHtml}</ul></div>
                 <div class="mb-4 print-break-inside-avoid">
                     <h5 class="font-bold text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded mb-2">ADIM 2: ARAÇ İÇİNE YERLEŞTİRİN & MERKEZLEYİN</h5>
                     <ul class="space-y-2 text-xs text-indigo-900 list-disc pl-5">
                         <li>Aşağıdaki <strong>2D Çizimde</strong> her bloğun ortasında yazan koli adetlerini kontrol ederek araca yükleyin. <strong>TÜM YÜKÜ DORSE GENİŞLİĞİNE GÖRE TAM ORTALAYIN.</strong></li>
-                        <li>Bazı paletler araca tam sığması için <strong>yan çevrilmiştir (90 derece döndürülmüştür)</strong>. Çizimdeki şekle birebir uyun.</li>
+                        ${baseType==='floor' && currentMode === 'single' ? '<li class="text-emerald-700 font-bold">Maksimum Zemin Yayılımı: Sistem, alttaki kutulara binen stresi azaltmak için yükü (tavana yığmak yerine) tüm tırın zeminine güvenli bir şekilde yaymıştır.</li>' : ''}
                     </ul>
                 </div>
                 <div class="print-break-inside-avoid">
@@ -1168,11 +1194,12 @@
             </div>
         `;
 
-        // YENİ: Palet dizilim çizimlerini HTML oluşturulduktan sonra render et
         for(let tg of sortedGroups) {
-            let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let safeSkuId = sku.replace(/\W/g, '');
-            let sampleItem = result.placedItems.find(p => p.id === sku);
+            let skuParts = Object.keys(tableGroups).find(k => tableGroups[k] === tg).split('_');
+            let sku = skuParts[0];
+            let boxCount = parseInt(skuParts[1]);
+            let safeSkuId = sku.replace(/\W/g, '') + '_' + boxCount;
+            let sampleItem = result.placedItems.find(p => p.id === sku && p.boxes === boxCount);
             if(sampleItem) drawPalletPreview(`pallet_canvas_${safeSkuId}`, sampleItem, baseType);
         }
 
@@ -1283,15 +1310,20 @@
                 ctx.fillStyle = '#0f172a'; ctx.font = 'bold 8px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText(shortSku, cx_item, cy_item - 6);
 
+                let layersText = item.displayLayers ? item.displayLayers : Math.ceil(item.boxes / (item.palletBlocks[0].cols * item.palletBlocks[0].rows));
+                if (document.getElementById('baseType').value === 'floor') layersText = item.displayLayers;
+
                 if (item.isPartial) {
-                    ctx.fillStyle = '#e11d48'; ctx.font = '900 10px Inter'; ctx.fillText(`! ${item.boxes} Koli`, cx_item, cy_item + 6);
+                    ctx.fillStyle = '#e11d48'; ctx.font = '900 10px Inter'; ctx.fillText(`! ${layersText} Kat`, cx_item, cy_item + 6);
                 } else {
-                    ctx.fillStyle = '#16a34a'; ctx.font = '900 10px Inter'; ctx.fillText(`${item.boxes} Koli`, cx_item, cy_item + 6);
+                    ctx.fillStyle = '#16a34a'; ctx.font = '900 10px Inter'; ctx.fillText(`${layersText} Kat`, cx_item, cy_item + 6);
                 }
             } else {
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctx.fillRect(cx_item - 15, cy_item - 8, 30, 16);
                 ctx.fillStyle = item.isPartial ? '#e11d48' : '#0f172a'; ctx.font = '900 9px Inter'; ctx.textAlign='center'; ctx.textBaseline='middle';
-                ctx.fillText(`${item.boxes}k`, cx_item, cy_item);
+                let layersText = item.displayLayers ? item.displayLayers : Math.ceil(item.boxes / (item.palletBlocks[0].cols * item.palletBlocks[0].rows));
+                if (document.getElementById('baseType').value === 'floor') layersText = item.displayLayers;
+                ctx.fillText(`${layersText} Kat`, cx_item, cy_item);
             }
         });
 
