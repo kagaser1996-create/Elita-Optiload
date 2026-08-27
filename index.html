@@ -55,7 +55,7 @@
     
     <script>
         // ==========================================
-        // SUPABASE CONNECTION (SAFE INITIALIZATION)
+        // SUPABASE CONNECTION (OFFLINE SAFE MODE)
         // ==========================================
         const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
@@ -63,23 +63,9 @@
         let supabase = null;
         let currentUser = null;
 
-        // Wait for the browser to be ready before connecting to prevent crashing
-        window.addEventListener('DOMContentLoaded', () => {
-            if (window.supabase) {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                
-                // Setup Auth tracking safely
-                supabase.auth.getSession().then(({ data: { session } }) => { 
-                    if (session) handleAuthChange(session.user); 
-                });
-                supabase.auth.onAuthStateChange((_event, session) => { 
-                    handleAuthChange(session?.user || null); 
-                });
-            } else {
-                console.error("Supabase fail: Library did not load from internet.");
-            }
-            init(); // Start the engine once everything is safely loaded
-        });
+        if (window.supabase) {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
     </script>
 </head>
 <body class="p-0 md:p-4 h-screen flex flex-col">
@@ -145,6 +131,7 @@
         </div>
     </div>
 </nav>
+
 
 <div class="flex-grow flex flex-col lg:flex-row max-w-[1400px] mx-auto w-full gap-4 overflow-hidden print-full-width">
     
@@ -311,6 +298,11 @@
     // ==========================================
     // AUTH & SUPABASE CLOUD SYNC LOGIC
     // ==========================================
+    if (supabase) {
+        supabase.auth.getSession().then(({ data: { session } }) => { if (session) handleAuthChange(session.user); });
+        supabase.auth.onAuthStateChange((_event, session) => { handleAuthChange(session?.user || null); });
+    }
+
     function handleAuthChange(user) {
         currentUser = user;
         if (user) {
@@ -325,7 +317,7 @@
     }
 
     async function handleRegister() {
-        if(!supabase) return alert("Hata: Veritabanına bağlanılamadı. Lütfen sayfayı yenileyin.");
+        if(!supabase) return alert("Supabase API bilgileri eksik veya URL geçersiz. Lütfen kod içerisine doğru bağlantı anahtarlarını yapıştırın.");
         const email = document.getElementById('authEmail').value;
         const password = document.getElementById('authPassword').value;
         if(!email || !password) return alert("Email ve şifre gereklidir.");
@@ -335,7 +327,7 @@
     }
 
     async function handleLogin() {
-        if(!supabase) return alert("Hata: Veritabanına bağlanılamadı. Lütfen sayfayı yenileyin.");
+        if(!supabase) return alert("Supabase API bilgileri eksik veya URL geçersiz.");
         const email = document.getElementById('authEmail').value;
         const password = document.getElementById('authPassword').value;
         if(!email || !password) return alert("Email ve şifre gereklidir.");
@@ -776,6 +768,7 @@
 
                     let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
                     let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
+                    let floorFit = Math.max(c1 * r1, c2 * r2);
                     let isRotated = (c2 * r2) > (c1 * r1);
                     let cols = isRotated ? c2 : c1;
                     let maxRows = isRotated ? r2 : r1;
@@ -1022,7 +1015,11 @@
         let tableGroups = {};
         result.placedItems.forEach(p => {
             let gKey = p.id + '_' + p.boxes;
-            if(!tableGroups[gKey]) tableGroups[gKey] = { boxes: 0, items: 0, partials: 0, patternName: p.patternName, boxesPerUnit: p.boxes, color: p.color, priority: p.priority, layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers };
+            if(!tableGroups[gKey]) tableGroups[gKey] = { 
+                boxes: 0, items: 0, partials: 0, patternName: p.patternName, 
+                boxesPerUnit: p.boxesPerUnit || p.boxes, color: p.color, priority: p.priority, 
+                layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers 
+            };
             tableGroups[gKey].boxes += p.boxes; tableGroups[gKey].items++;
             if(p.isPartial) tableGroups[gKey].partials++;
         });
@@ -1061,7 +1058,7 @@
                 <div class="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-100">
                     <span class="block text-indigo-700 text-[10px] uppercase font-bold mb-1">Araç İçi Genel Dizilim Yönü</span>
                     <strong class="text-slate-800 text-xs">
-                        Genişlik (En): ${tg.layoutCols || "-"} Koli &nbsp;|&nbsp; Uzunluk (Boy): ${actualRowsUsed || "-"} Koli &nbsp;|&nbsp; Yükseklik: ${tg.layoutLayers || "-"} Kat
+                        Genişlik (En): ${tg.layoutCols || "-"} Koli &nbsp;|&nbsp; Uzunluk (Boy): ${tg.layoutRows || "-"} Koli &nbsp;|&nbsp; Yükseklik: ${tg.layoutLayers || tg.boxesPerUnit || "-"} Kat
                     </strong>
                 </div>`;
             } else {
