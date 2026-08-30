@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elita OptiLoad | Akıllı Saha & Yükleme Planlayıcısı</title>
+    <title>Elita OptiLoad | 3D Lojistik Planlayıcı</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -34,24 +36,10 @@
             .print-page-2 { page-break-before: always !important; break-before: page !important; margin-top: 0 !important; }
         }
     </style>
-    
-    <script>
-        // ==========================================
-        // SUPABASE CONNECTION
-        // ==========================================
-        const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
-        
-        let supabase = null;
-        let currentUser = null;
-
-        if (window.supabase) {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        }
-    </script>
 </head>
 <body class="p-0 md:p-4 h-screen flex flex-col">
 
+<!-- DIAGNOSTIC MODAL -->
 <div id="diagnosticModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center px-4 no-print">
     <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full border-t-8 border-rose-500">
         <div class="flex justify-between items-start mb-4">
@@ -63,6 +51,7 @@
     </div>
 </div>
 
+<!-- MODALS FOR AUTH & SAVING -->
 <div id="authModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center px-4">
     <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full">
         <div class="flex justify-between items-center mb-4">
@@ -125,6 +114,7 @@
 
 <div class="flex-grow flex flex-col lg:flex-row max-w-[1400px] mx-auto w-full gap-4 overflow-hidden print-full-width">
     
+    <!-- LEFT SIDEBAR: INPUTS -->
     <div class="w-full lg:w-[360px] bg-white rounded-xl shadow-md border border-slate-200 flex flex-col no-print flex-shrink-0">
         <div class="grid grid-cols-2 bg-slate-100 rounded-t-xl border-b border-slate-200">
             <div class="tab-btn active text-sm text-center py-3" id="tab-single" onclick="switchTab('single')">📦 Tekil SKU</div>
@@ -186,6 +176,7 @@
                 </label>
             </div>
 
+            <!-- TEKİL PANEL -->
             <div id="panel-single" class="block">
                 <div class="section-header">Tekil Ürün Modu</div>
                 <div class="input-group mb-3"><select id="skuSelect" onchange="populateSKU(); debouncedRunEngine();"></select></div>
@@ -201,6 +192,7 @@
                 </div>
             </div>
 
+            <!-- KARMA PANEL -->
             <div id="panel-mixed" class="hidden">
                 <div class="section-header flex justify-between items-center mb-2">Karma Yük <span class="text-[9px] bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded font-bold">Öncelik Tipi</span></div>
                 <div class="text-[10px] text-slate-500 mb-2 font-semibold">Sıralamayı değiştirmek için <span class="text-lg">☰</span> ikonundan sürükleyin. En üstteki ürün yükleme önceliğine sahiptir.</div>
@@ -211,6 +203,7 @@
         </div>
     </div>
 
+    <!-- RIGHT SIDEBAR: VISUALIZATION -->
     <div class="flex-grow flex flex-col gap-4 overflow-y-auto print-full-width custom-scrollbar pr-1" id="printArea">
         <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 print-grid print-stats print-break-inside-avoid">
             <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
@@ -233,6 +226,7 @@
 
         <div id="layerOptimizationInfo" class="hidden print-break-inside-avoid"><div id="optimizationDetailsList"></div></div>
 
+        <!-- THIS DIV MOVES TO PAGE 2 ON PRINT -->
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col flex-grow min-h-[450px] print-break-inside-avoid relative print-page-2">
             <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 rounded-t-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 z-10 relative">
                 <span class="text-sm font-bold text-slate-700">3D İZOMETRİK YÜKLEME SİMÜLASYONU</span>
@@ -250,6 +244,7 @@
                 </div>
             </div>
 
+            <!-- 3D KANVAS -->
             <div class="flex-grow flex items-center justify-center p-4 bg-slate-800 relative rounded-b-xl overflow-hidden">
                 <canvas id="contCanvas" width="900" height="500" class="max-w-full w-full object-contain"></canvas>
             </div>
@@ -258,6 +253,19 @@
 </div>
 
 <script>
+    // ==========================================
+    // SUPABASE CLIENT INITIALIZATION
+    // ==========================================
+    const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
+    
+    let supabaseClient = null;
+    let currentUser = null;
+
+    if (window.supabase) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
+
     // ==========================================
     // DATABASE & GLOBAL VARIABLES
     // ==========================================
@@ -301,7 +309,6 @@
     ];
 
     let currentMode = 'single';
-    // 3D Isometric Colors (Base, Top, Right, Left faces)
     const colorMap = [
         { base: '#0284c7', top: '#38bdf8', right: '#0369a1', left: '#075985' }, 
         { base: '#16a34a', top: '#4ade80', right: '#15803d', left: '#166534' }, 
@@ -327,10 +334,9 @@
         debouncedRunEngine(); 
     }
 
-    // --- SUPABASE AUTH EVENTS ---
-    if (supabase) {
-        supabase.auth.getSession().then(({ data: { session } }) => { if (session) handleAuthChange(session.user); });
-        supabase.auth.onAuthStateChange((_event, session) => { handleAuthChange(session?.user || null); });
+    if (supabaseClient) {
+        supabaseClient.auth.getSession().then(({ data: { session } }) => { if (session) handleAuthChange(session.user); });
+        supabaseClient.auth.onAuthStateChange((_event, session) => { handleAuthChange(session?.user || null); });
     }
 
     function handleAuthChange(user) {
@@ -350,16 +356,25 @@
         const errLabel = document.getElementById('authErrorMsg');
         errLabel.classList.add('hidden');
         
-        if(!supabase) { errLabel.innerText="Veritabanı bağlantısı yok. Lütfen sayfayı yenileyin."; errLabel.classList.remove('hidden'); return; }
+        if(!supabaseClient) { 
+            errLabel.innerText="Veritabanı bağlantısı yok. Lütfen sayfayı yenileyin."; 
+            errLabel.classList.remove('hidden'); 
+            return; 
+        }
         
         const email = document.getElementById('authEmail').value.trim();
         const password = document.getElementById('authPassword').value;
-        if(!email || !password) { errLabel.innerText="Email ve şifre gereklidir."; errLabel.classList.remove('hidden'); return; }
+        if(!email || !password) { 
+            errLabel.innerText="Email ve şifre gereklidir."; 
+            errLabel.classList.remove('hidden'); 
+            return; 
+        }
         
         const btn = document.getElementById('registerBtn');
         try {
-            btn.innerText = "Kaydediliyor..."; btn.disabled = true;
-            const { data, error } = await supabase.auth.signUp({ email, password });
+            btn.innerText = "Kaydediliyor..."; 
+            btn.disabled = true;
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
             if (error) throw error;
             
             errLabel.innerText = "Kayıt başarılı! Lütfen giriş yapın.";
@@ -370,7 +385,8 @@
             errLabel.classList.add('text-rose-500');
             errLabel.innerText = "Kayıt hatası: " + e.message;
         } finally {
-            btn.innerText = "Yeni Hesap Oluştur"; btn.disabled = false;
+            btn.innerText = "Yeni Hesap Oluştur"; 
+            btn.disabled = false;
         }
     }
 
@@ -378,28 +394,37 @@
         const errLabel = document.getElementById('authErrorMsg');
         errLabel.classList.add('hidden');
         
-        if(!supabase) { errLabel.innerText="Veritabanı bağlantısı yok. Lütfen sayfayı yenileyin."; errLabel.classList.remove('hidden'); return; }
+        if(!supabaseClient) { 
+            errLabel.innerText="Veritabanı bağlantısı yok. Lütfen sayfayı yenileyin."; 
+            errLabel.classList.remove('hidden'); 
+            return; 
+        }
         
         const email = document.getElementById('authEmail').value.trim();
         const password = document.getElementById('authPassword').value;
-        if(!email || !password) { errLabel.innerText="Email ve şifre gereklidir."; errLabel.classList.remove('hidden'); return; }
+        if(!email || !password) { 
+            errLabel.innerText="Email ve şifre gereklidir."; 
+            errLabel.classList.remove('hidden'); 
+            return; 
+        }
         
         const btn = document.getElementById('loginBtn');
         try {
-            btn.innerText = "Bağlanıyor..."; btn.disabled = true;
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            btn.innerText = "Bağlanıyor..."; 
+            btn.disabled = true;
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) throw error;
-            // Note: success logic is handled by onAuthStateChange event listener automatically.
         } catch (e) {
             errLabel.classList.remove('hidden', 'text-emerald-600');
             errLabel.classList.add('text-rose-500');
             errLabel.innerText = "Giriş hatası: " + e.message;
         } finally {
-            btn.innerText = "Giriş Yap"; btn.disabled = false;
+            btn.innerText = "Giriş Yap"; 
+            btn.disabled = false;
         }
     }
 
-    async function handleLogout() { if(supabase) await supabase.auth.signOut(); }
+    async function handleLogout() { if(supabaseClient) await supabaseClient.auth.signOut(); }
 
     function getUIDataPayload() {
         let mixedData = [];
@@ -419,7 +444,7 @@
     async function saveCurrentPlan() {
         if (!currentUser) return alert("Lütfen önce giriş yapın.");
         const planName = document.getElementById('planNameInput').value || "İsimsiz Plan";
-        const { data, error } = await supabase.from('saved_plans').insert([{ user_id: currentUser.id, plan_name: planName, plan_data: getUIDataPayload() }]);
+        const { data, error } = await supabaseClient.from('saved_plans').insert([{ user_id: currentUser.id, plan_name: planName, plan_data: getUIDataPayload() }]);
         if (error) alert("Plan kaydedilemedi: " + error.message);
         else { alert("Plan başarıyla kaydedildi!"); closeModal('savePlanModal'); document.getElementById('planNameInput').value = ""; }
     }
@@ -428,7 +453,7 @@
         if (!currentUser) return;
         const listDiv = document.getElementById('savedPlansList');
         listDiv.innerHTML = "<p class='text-xs text-slate-500'>Yükleniyor...</p>";
-        const { data: plans, error } = await supabase.from('saved_plans').select('*').order('created_at', { ascending: false });
+        const { data: plans, error } = await supabaseClient.from('saved_plans').select('*').order('created_at', { ascending: false });
         if (error) { listDiv.innerHTML = "<p class='text-xs text-rose-500'>Hata oluştu.</p>"; return; }
         if (plans.length === 0) { listDiv.innerHTML = "<p class='text-xs text-slate-500'>Kayıtlı planınız bulunmamaktadır.</p>"; return; }
 
@@ -460,7 +485,6 @@
         updateVehicleDims(); handleBaseChange(); debouncedRunEngine(); closeModal('loadPlanModal');
     }
 
-    // --- DOM POPULATORS ---
     function populateSelects() {
         const select = document.getElementById('skuSelect');
         select.innerHTML = "";
@@ -514,17 +538,11 @@
         if(v !== "TIR") document.getElementById('optFrontCurve').checked = false;
     }
 
-    // ==========================================
-    // DEBOUNCE (NO FREEZE) LOGIC
-    // ==========================================
     function debouncedRunEngine() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(runEngine, 300);
     }
 
-    // ==========================================
-    // DRAG AND DROP LOGIC (MIXED ROW)
-    // ==========================================
     function addMixedRowWithCount(prefillIdx, prefillCount) {
         const div = document.createElement('div'); 
         div.className = "flex gap-2 items-center mixed-row mb-1 p-1 bg-white border border-slate-200 rounded shadow-sm";
@@ -569,7 +587,6 @@
             let dropElem = this.previousSibling;
             dropElem.addEventListener('dragstart', handleDragStart); dropElem.addEventListener('dragover', handleDragOver);
             dropElem.addEventListener('drop', handleDrop); dropElem.addEventListener('dragend', handleDragEnd);
-            // Restore values properly
             let oldSelectVal = dragSrcEl.querySelector('.mixed-sku').value;
             let oldInputVal = dragSrcEl.querySelector('.mixed-val').value;
             dropElem.querySelector('.mixed-sku').value = oldSelectVal;
@@ -603,9 +620,6 @@
         openModal('diagnosticModal');
     }
 
-    // ==========================================
-    // CORE ALGORITHM
-    // ==========================================
     function runEngine() {
         document.getElementById('mixedResultsTable').style.display = currentMode === 'mixed' ? 'block' : 'none';
         let itemsToPack = [];
@@ -747,7 +761,7 @@
                             let blockL = actualBoxL;
                             
                             itemsToPack.push({
-                                id: sku.name, priority: idx, count: 1, l: blockL, w: blockW, h: sku.H, 
+                                id: sku.name, priority: idx, count: 1, l: blockL, w: blockW, h: rowLayers * sku.H, 
                                 boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
                                 palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
                                 layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers
@@ -811,7 +825,6 @@
         let queue = [];
         itemTypes.forEach((type) => { for(let i=0; i<Math.min(type.count, 5000); i++) queue.push({...type}); });
         
-        // Priority Top-to-Bottom
         queue.sort((a,b) => { if (a.priority !== b.priority) return a.priority - b.priority; return b.area - a.area; });
 
         for (let i = 0; i < queue.length; i++) {
@@ -873,13 +886,14 @@
         for (let i = 0; i < newRects.length; i++) {
             let isEncl = false;
             for (let j = 0; j < newRects.length; j++) {
-                if (i !== j && newRects[i].x >= newRects[j].x && newRects[i].y >= newRects[j].y && newRects[i].x + newRects[i].l <= newRects[j].x + newRects[j].l && newRects[i].y + newRects[i].w <= newRects[j].y + newRects[j].w) { isEncl = true; break; }
+                if (i !== j && newRects[i].x >= newRects[j].x && newRects[i].y >= newRects[j].y && newRects[i].x + newRects[i].l <= newRects[j].x + newRects[j].l && newRects[i].y + newRects[i].w <= newRects[j].y + newRects[j].w) {
+                    isEncl = true; break;
+                }
             }
             if (!isEncl) freeRects.push(newRects[i]);
         }
     }
 
-    // YENİ: DİNAMİK MERKEZLEME (PALET ÇİZİMİ İÇİN)
     function drawPalletPreview(canvasId, item, baseType) {
         const canvas = document.getElementById(canvasId);
         if(!canvas) return;
@@ -909,7 +923,7 @@
             let bOffsetX = ((patL * scale) - (loadL * scale)) / 2;
             let bOffsetY = ((patW * scale) - (loadW * scale)) / 2;
             ctx.translate(bOffsetX, bOffsetY);
-            for(let r=0; r<1; r++){ 
+            for(let r=0; r<1; r++){
                 for(let c=0; c<item.layoutCols; c++){
                     ctx.fillStyle = item.colorSet.top;
                     ctx.fillRect(r * item.palletBlocks[0].l * scale, c * item.palletBlocks[0].w * scale, item.palletBlocks[0].l * scale - 1, item.palletBlocks[0].w * scale - 1);
@@ -1070,15 +1084,12 @@
         drawIsometricMixedCanvas(result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX);
     }
 
-    // ==========================================
-    // 🚀 3D ISOMETRIC RENDERING ENGINE
-    // ==========================================
     function drawIsometricMixedCanvas(placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX) {
         const canvas = document.getElementById('contCanvas'); 
         const ctx = canvas.getContext('2d'); 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const angle = 0.523599; // 30 degrees for isometric
+        const angle = 0.523599; // 30 degrees
         const cosA = Math.cos(angle); const sinA = Math.sin(angle);
         
         let minX = Infinity; let maxX = 0; let minY = Infinity; let maxY = 0;
@@ -1132,7 +1143,6 @@
             drawPolygon([b0, bX, bXY, bY], 'rgba(234, 179, 8, 0.4)');
         }
 
-        // Z-Buffer sorting for isometric (Back to front)
         blocks3D.sort((a,b) => { return (a.x + a.y + a.z) - (b.x + b.y + b.z); });
 
         // Draw the Cargo Blocks
@@ -1176,7 +1186,6 @@
         }
     }
 
-    // Delay start safely after fonts & styles load
     window.addEventListener('DOMContentLoaded', () => { init(); });
 </script>
 
