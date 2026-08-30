@@ -167,7 +167,7 @@
                 <span id="userEmailLabel" class="text-slate-300 font-medium">user@example.com</span>
             </div>
 
-            <!-- Dashboard Button (Logistics & Admin) -->
+            <!-- Dashboard Button -->
             <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
                 📥 Gelen Talepler
             </button>
@@ -244,11 +244,11 @@
             <div class="input-group mb-3">
                 <select id="baseType" onchange="handleBaseChange(); debouncedRunEngine();">
                     <option value="slipsheet">Slipsheet (Çekme)</option>
-                    <option value="pallet" selected>Ahşap Palet</option>
-                    <option value="floor">Dökme / Zemin Yükleme</option>
+                    <option value="pallet">Ahşap Palet</option>
+                    <option value="floor" selected>Dökme / Zemin Yükleme</option>
                 </select>
             </div>
-            <div id="palletDropdownGroup" class="input-group mb-3">
+            <div id="palletDropdownGroup" class="input-group mb-3" style="display:none;">
                 <select id="specificBaseSize" onchange="debouncedRunEngine()">
                     <option value="auto">🌟 Otomatik Seçim (En Verimli)</option>
                     <option value="0">80x120 cm Euro Palet</option>
@@ -325,7 +325,7 @@
 
         <div id="layerOptimizationInfo" class="print-break-inside-avoid"><div id="optimizationDetailsList"></div></div>
 
-        <!-- 3D DISPLAY CARD (PAGE 2 ON PRINT) -->
+        <!-- THIS DIV MOVES TO PAGE 2 ON PRINT -->
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col flex-grow min-h-[450px] print-break-inside-avoid relative print-page-2">
             <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 rounded-t-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 z-10 relative">
                 <span class="text-sm font-bold text-slate-700">3D İZOMETRİK YÜKLEME SİMÜLASYONU</span>
@@ -408,6 +408,7 @@
     ];
 
     let currentMode = 'single';
+    // 3D Isometric Colors (Base, Top, Right, Left faces)
     const colorMap = [
         { base: '#0284c7', top: '#38bdf8', right: '#0369a1', left: '#075985' }, 
         { base: '#16a34a', top: '#4ade80', right: '#15803d', left: '#166534' }, 
@@ -430,7 +431,7 @@
         addMixedRowWithCount(29, 200); 
         updateVehicleDims();
         handleBaseChange();
-        runEngine();
+        debouncedRunEngine(); 
     }
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -471,19 +472,13 @@
             btnReg.className = "flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent";
             regFields.classList.add('hidden');
             submitBtn.innerText = "Giriş Yap";
+            submitBtn.onclick = handleLogin;
         } else {
             btnReg.className = "flex-1 py-2 font-bold text-sm border-b-2 border-sky-500 text-sky-600";
             btnLogin.className = "flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent";
             regFields.classList.remove('hidden');
             submitBtn.innerText = "Yeni Hesap Oluştur";
-        }
-    }
-
-    async function handleAuthSubmit() {
-        if (authMode === 'login') {
-            await handleLogin();
-        } else {
-            await handleRegister();
+            submitBtn.onclick = handleRegister;
         }
     }
 
@@ -519,7 +514,7 @@
             
             if (error) throw error;
             
-            errLabel.innerText = "Kayıt başarılı! Giriş yapabilirsiniz.";
+            errLabel.innerText = "Kayıt başarılı! Lütfen giriş yapın.";
             errLabel.classList.remove('hidden', 'text-rose-500');
             errLabel.classList.add('text-emerald-600');
             switchAuthTab('login');
@@ -689,7 +684,7 @@
             (inputs.mixedData || []).forEach(row => { addMixedRowWithCount(parseInt(row.skuIdx), parseInt(row.val)); });
         }
 
-        updateVehicleDims(); handleBaseChange(); runEngine(); closeDashboard();
+        updateVehicleDims(); handleBaseChange(); debouncedRunEngine(); closeDashboard();
         
         if (currentUserProfile.role === 'admin') {
             showAlert(`Yönetici Modu: Onaylanan plan incelenmek üzere ekrana yüklendi.\n\nÜst menüden 'Saha Formunu Yazdır' butonuna basarak PDF olarak kaydedebilirsiniz.`);
@@ -753,6 +748,12 @@
         const select = document.getElementById('skuSelect');
         select.innerHTML = "";
         skuDatabase.forEach((sku, idx) => select.options.add(new Option(`${sku.name} (${sku.L}x${sku.W}x${sku.H})`, idx)));
+        
+        document.querySelectorAll('.mixed-sku').forEach(sel => {
+            let val = sel.value; sel.innerHTML = "";
+            skuDatabase.forEach((sku, idx) => sel.options.add(new Option(`${sku.name} (${sku.L}x${sku.W}x${sku.H})`, idx)));
+            sel.value = val || 0;
+        });
     }
 
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -766,7 +767,8 @@
         document.getElementById('tab-mixed').className = mode === 'mixed' ? 'tab-btn active text-sm text-center py-3' : 'tab-btn text-sm text-slate-500 text-center py-3';
         document.getElementById('panel-single').style.display = mode === 'single' ? 'block' : 'none';
         document.getElementById('panel-mixed').style.display = mode === 'mixed' ? 'block' : 'none';
-        runEngine(); 
+        document.getElementById('targetBoxesGroup').style.display = mode === 'single' ? 'block' : 'none';
+        debouncedRunEngine(); 
     }
 
     function handleBaseChange() {
@@ -1023,7 +1025,7 @@
                             let blockL = actualBoxL;
                             
                             itemsToPack.push({
-                                id: sku.name, priority: idx, target: targetBoxes, count: 1, l: blockL, w: blockW, h: rowLayers * sku.H, 
+                                id: sku.name, priority: idx, count: 1, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * sku.H, 
                                 boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
                                 palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
                                 layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers
@@ -1044,7 +1046,6 @@
         }
 
         let result = unifiedPacker(itemsToPack, effContL, effContW, maxWgt, baseType);
-        lastComputedResult = result;
         updateUnifiedUI(result, contL, contW, maxWgt, baseType, optFrontCurve, titleText);
     }
 
@@ -1088,6 +1089,7 @@
         let queue = [];
         itemTypes.forEach((type) => { for(let i=0; i<Math.min(type.count, 5000); i++) queue.push({...type}); });
         
+        // Priority Top-to-Bottom
         queue.sort((a,b) => { if (a.priority !== b.priority) return a.priority - b.priority; return b.area - a.area; });
 
         for (let i = 0; i < queue.length; i++) {
@@ -1126,7 +1128,7 @@
                 });
                 totalWgt += item.wgt; totalBoxes += item.boxes;
                 splitFreeRects(freeRects, bestNode.x, bestNode.y, pL, pW);
-                if (item.isPartial) break; 
+                // DO NOT BREAK HERE! Allow the loop to continue packing the rest of the truck.
             } else {
                 item.rejectReason = "Araç zemininde fiziksel olarak yer kalmadı.";
             }
@@ -1149,9 +1151,7 @@
         for (let i = 0; i < newRects.length; i++) {
             let isEncl = false;
             for (let j = 0; j < newRects.length; j++) {
-                if (i !== j && newRects[i].x >= newRects[j].x && newRects[i].y >= newRects[j].y && newRects[i].x + newRects[i].l <= newRects[j].x + newRects[j].l && newRects[i].y + newRects[i].w <= newRects[j].y + newRects[j].w) {
-                    isEncl = true; break;
-                }
+                if (i !== j && newRects[i].x >= newRects[j].x && newRects[i].y >= newRects[j].y && newRects[i].x + newRects[i].l <= newRects[j].x + newRects[j].l && newRects[i].y + newRects[i].w <= newRects[j].y + newRects[j].w) { isEncl = true; break; }
             }
             if (!isEncl) freeRects.push(newRects[i]);
         }
@@ -1186,7 +1186,7 @@
             let bOffsetX = ((patL * scale) - (loadL * scale)) / 2;
             let bOffsetY = ((patW * scale) - (loadW * scale)) / 2;
             ctx.translate(bOffsetX, bOffsetY);
-            for(let r=0; r<1; r++){
+            for(let r=0; r<1; r++){ // Just show one row depth for floor preview
                 for(let c=0; c<item.layoutCols; c++){
                     ctx.fillStyle = item.colorSet.top;
                     ctx.fillRect(r * item.palletBlocks[0].l * scale, c * item.palletBlocks[0].w * scale, item.palletBlocks[0].l * scale - 1, item.palletBlocks[0].w * scale - 1);
@@ -1221,12 +1221,13 @@
     }
 
     function updateUnifiedUI(result, contL, contW, maxWgt, baseType, optFrontCurve, titleText) {
+        document.getElementById('layerOptimizationInfo').style.display = 'block'; 
         document.getElementById('resTotalBoxes').innerText = result.totalBoxes.toLocaleString();
         document.getElementById('resWeight').innerText = `${result.totalWgt.toLocaleString(undefined, {maximumFractionDigits:1})} kg`;
         document.getElementById('resLoads').innerText = `${result.placedItems.length} İstif`;
         
-        let momentX = 0;
-        result.placedItems.forEach(p => { momentX += (p.x + p.l/2) * p.wgt; });
+        let momentX = 0, momentY = 0;
+        result.placedItems.forEach(p => { momentX += (p.x + p.l/2) * p.wgt; momentY += (p.y + p.w/2) * p.wgt; });
         let cogX = result.totalWgt > 0 ? (momentX / result.totalWgt) : 0;
         
         let weightPct = Math.min(100, Math.round((result.totalWgt / maxWgt) * 100));
@@ -1235,9 +1236,10 @@
 
         let tableGroups = {};
         result.placedItems.forEach(p => {
-            if(!tableGroups[p.id]) tableGroups[p.id] = { boxes: 0, items: 0, partials: 0, target: p.target, reason: p.rejectReason, patternName: p.patternName, boxesPerUnit: p.boxesPerUnit, colorSet: p.colorSet, priority: p.priority, layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers };
-            tableGroups[p.id].boxes += p.boxes; tableGroups[p.id].items++;
-            if(p.isPartial) { tableGroups[p.id].partials++; tableGroups[p.id].reason = p.rejectReason; }
+            let gKey = p.id + '_' + p.boxes;
+            if(!tableGroups[gKey]) tableGroups[gKey] = { boxes: 0, items: 0, partials: 0, target: p.target, reason: p.rejectReason, patternName: p.patternName, boxesPerUnit: p.boxesPerUnit, colorSet: p.colorSet, priority: p.priority, layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers };
+            tableGroups[gKey].boxes += p.boxes; tableGroups[gKey].items++;
+            if(p.isPartial) { tableGroups[gKey].partials++; tableGroups[gKey].reason = p.rejectReason; }
         });
 
         let sortedGroups = Object.values(tableGroups).sort((a,b) => a.priority - b.priority);
@@ -1245,12 +1247,13 @@
         
         for(let tg of sortedGroups) {
             let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
+            let skuNameOnly = sku.split('_')[0]; // Safe print string for table
             let diagBtn = "";
             if (tg.boxes < tg.target && tg.target > 0) {
                 let reasonTxt = tg.reason || "Kapasite/Alan sınırı.";
-                diagBtn = `<button onclick="showDiagnostic('${sku}', ${tg.target}, ${tg.boxes}, '${reasonTxt}')" class="ml-2 bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-black hover:bg-rose-200" title="Neden hedefime ulaşamadım?">?</button>`;
+                diagBtn = `<button onclick="showDiagnostic('${skuNameOnly}', ${tg.target}, ${tg.boxes}, '${reasonTxt}')" class="ml-2 bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-black hover:bg-rose-200" title="Neden hedefime ulaşamadım?">?</button>`;
             }
-            tbody.innerHTML += `<tr class="border-b"><td class="p-2 font-bold flex items-center gap-2"><span class="w-3 h-3 rounded" style="background-color:${tg.colorSet.base}"></span> ${sku} ${diagBtn}</td><td class="p-2 text-slate-500">Planlandı</td><td class="p-2 font-black text-emerald-600">${tg.boxes}</td><td class="p-2">${tg.items} Adet</td><td class="p-2">${tg.partials>0 ? '<span class="text-rose-500 text-[10px] font-bold">Eksik Kat!</span>' : '-'}</td></tr>`;
+            tbody.innerHTML += `<tr class="border-b"><td class="p-2 font-bold flex items-center gap-2"><span class="w-3 h-3 rounded" style="background-color:${tg.colorSet.base}"></span> ${skuNameOnly} ${diagBtn}</td><td class="p-2 text-slate-500">Planlandı</td><td class="p-2 font-black text-emerald-600">${tg.boxes}</td><td class="p-2">${tg.items} Adet</td><td class="p-2">${tg.partials>0 ? '<span class="text-rose-500 text-[10px] font-bold">Eksik Kat!</span>' : '-'}</td></tr>`;
         }
 
         let maxLoadW = 0; let maxLoadL = 0;
@@ -1258,9 +1261,11 @@
         let gapW = (contW - 10) - maxLoadW; let gapL = (contL - 10) - maxLoadL; 
 
         let skuDetailsHtml = '';
-        for(let tg of sortedGroups) {
-            let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let safeSkuId = sku.replace(/[^a-zA-Z0-9]/g, '_');
+        
+        sortedGroups.forEach((tg, idx) => {
+            let skuParts = Object.keys(tableGroups).find(k => tableGroups[k] === tg).split('_');
+            let sku = skuParts[0]; 
+            let safeSkuId = "pallet_canvas_" + idx; // Bulletproof Canvas ID Generation
             
             let layoutStr = "";
             if (baseType === 'floor') {
@@ -1273,7 +1278,7 @@
                     </strong>
                 </div>`;
             } else {
-                let sampleItem = result.placedItems.find(p => p.id === sku);
+                let sampleItem = result.placedItems.find(p => p.id === sku && p.boxes === parseInt(skuParts[1]));
                 if (sampleItem && sampleItem.palletBlocks) {
                     let blk = sampleItem.palletBlocks[0];
                     let pCols = sampleItem.isRotated ? blk.rows : blk.cols;
@@ -1301,7 +1306,7 @@
                     
                     <div class="col-span-2 flex items-center gap-4 border-t border-slate-100 pt-3">
                         <div class="w-24 h-24 flex-shrink-0">
-                            <canvas id="pallet_canvas_${safeSkuId}" width="96" height="96" class="w-full h-full object-contain bg-slate-50 border border-slate-200 rounded"></canvas>
+                            <canvas id="${safeSkuId}" width="96" height="96" class="w-full h-full object-contain bg-slate-50 border border-slate-200 rounded"></canvas>
                         </div>
                         <div class="text-[10px] text-slate-500">
                             <strong class="text-slate-700 uppercase tracking-wider">Taban Dizilimi (Üstten Görünüm)</strong><br>
@@ -1309,7 +1314,7 @@
                         </div>
                     </div>
                 </li>`;
-        }
+        });
 
         const useAirbag = document.getElementById('optAirbag').checked;
         const useLashing = document.getElementById('optLashing').checked;
@@ -1336,12 +1341,14 @@
             </div>
         `;
 
-        for(let tg of sortedGroups) {
-            let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let safeSkuId = sku.replace(/[^a-zA-Z0-9]/g, '_');
-            let sampleItem = result.placedItems.find(p => p.id === sku);
-            if(sampleItem) drawPalletPreview(`pallet_canvas_${safeSkuId}`, sampleItem, baseType);
-        }
+        // Render the 2D Pallet Previews after DOM insertion
+        sortedGroups.forEach((tg, idx) => {
+            let skuParts = Object.keys(tableGroups).find(k => tableGroups[k] === tg).split('_');
+            let sku = skuParts[0];
+            let boxCount = parseInt(skuParts[1]);
+            let sampleItem = result.placedItems.find(p => p.id === sku && p.boxes === boxCount);
+            if(sampleItem) drawPalletPreview(`pallet_canvas_${idx}`, sampleItem, baseType);
+        });
 
         drawIsometricMixedCanvas(result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX);
     }
@@ -1379,20 +1386,29 @@
         let drawL = contL; let drawW = contW; let drawH = contH;
         
         // Exact Bounding Box in Isometric Space
-        let spanU = (drawL + drawW) * cosA;
-        let spanV = (drawL + drawW) * sinA + drawH;
-        let midU = (drawL - drawW) * cosA / 2;
-        let midV = ((drawL + drawW) * sinA - drawH) / 2;
+        let uMin = -drawW * cosA;
+        let uMax = drawL * cosA;
+        let vMin = -drawH;
+        let vMax = (drawL + drawW) * sinA;
+
+        let spanU = uMax - uMin;
+        let spanV = vMax - vMin;
+
+        let uCenter = (uMin + uMax) / 2;
+        let vCenter = (vMin + vMax) / 2;
         
         let pad = 40;
         let scale = Math.min((canvas.width - pad*2) / spanU, (canvas.height - pad*2) / spanV);
+
+        let cx = canvas.width / 2;
+        let cy = canvas.height / 2;
 
         function project(px, py, pz) {
             let u = (px - py) * cosA;
             let v = (px + py) * sinA - pz;
             return {
-                x: (canvas.width / 2) + (u - midU) * scale,
-                y: (canvas.height / 2) + (v - midV) * scale
+                x: cx + (u - uCenter) * scale,
+                y: cy + (v - vCenter) * scale
             };
         }
 
