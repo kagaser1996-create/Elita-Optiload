@@ -365,6 +365,19 @@
     let lastComputedResult = null;
     let currentSimulationId = null;
 
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.supabase) {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            supabaseClient.auth.getSession().then(({ data: { session } }) => { 
+                if (session) handleAuthChange(session.user); 
+            });
+            supabaseClient.auth.onAuthStateChange((_event, session) => { 
+                handleAuthChange(session?.user || null); 
+            });
+        }
+        init();
+    });
+
     // ==========================================
     // DATABASE & GLOBAL VARIABLES
     // ==========================================
@@ -408,7 +421,6 @@
     ];
 
     let currentMode = 'single';
-    // 3D Isometric Colors (Base, Top, Right, Left faces)
     const colorMap = [
         { base: '#0284c7', top: '#38bdf8', right: '#0369a1', left: '#075985' }, 
         { base: '#16a34a', top: '#4ade80', right: '#15803d', left: '#166534' }, 
@@ -434,30 +446,6 @@
         debouncedRunEngine(); 
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-        if (window.supabase) {
-            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            supabaseClient.auth.getSession().then(({ data: { session } }) => { 
-                if (session) handleAuthChange(session.user); 
-            });
-            supabaseClient.auth.onAuthStateChange((_event, session) => { 
-                handleAuthChange(session?.user || null); 
-            });
-        }
-        init();
-    });
-
-    // --- SUPABASE AUTH EVENTS ---
-    function handleAuthChange(user) {
-        currentUser = user;
-        if (user) {
-            document.getElementById('authModal').classList.add('hidden');
-            loadUserProfile(user.id);
-        } else {
-            document.getElementById('authModal').classList.remove('hidden');
-        }
-    }
-
     function switchAuthTab(mode) {
         authMode = mode;
         const btnLogin = document.getElementById('authTabLogin');
@@ -472,90 +460,62 @@
             btnReg.className = "flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent";
             regFields.classList.add('hidden');
             submitBtn.innerText = "Giriş Yap";
-            submitBtn.onclick = handleLogin;
         } else {
             btnReg.className = "flex-1 py-2 font-bold text-sm border-b-2 border-sky-500 text-sky-600";
             btnLogin.className = "flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent";
             regFields.classList.remove('hidden');
-            submitBtn.innerText = "Yeni Hesap Oluştur";
-            submitBtn.onclick = handleRegister;
+            submitBtn.innerText = "Kullanıcı Oluştur ve Başla";
         }
     }
 
-    async function handleRegister() {
-        const errLabel = document.getElementById('authErrorMsg');
-        errLabel.classList.add('hidden');
-        
-        if(!supabaseClient) { 
-            errLabel.innerText="Veritabanı bağlantısı yok. Lütfen sayfayı yenileyin."; 
-            errLabel.classList.remove('hidden'); 
-            return; 
-        }
-        
-        const email = document.getElementById('authEmail').value.trim();
-        const password = document.getElementById('authPassword').value;
-        if(!email || !password) { 
-            errLabel.innerText="Email ve şifre gereklidir."; 
-            errLabel.classList.remove('hidden'); 
-            return; 
-        }
-        
-        const btn = document.getElementById('authSubmitBtn');
-        try {
-            btn.innerText = "Kaydediliyor..."; btn.disabled = true;
-            
-            const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
-            let role = document.getElementById('regRole').value;
-            if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') { role = 'admin'; }
-
-            const { data, error } = await supabaseClient.auth.signUp({ 
-                email, password, options: { data: { full_name: fullName, role: role } } 
-            });
-            
-            if (error) throw error;
-            
-            errLabel.innerText = "Kayıt başarılı! Lütfen giriş yapın.";
-            errLabel.classList.remove('hidden', 'text-rose-500');
-            errLabel.classList.add('text-emerald-600');
-            switchAuthTab('login');
-        } catch (e) {
-            errLabel.classList.remove('hidden', 'text-emerald-600');
-            errLabel.classList.add('text-rose-500');
-            errLabel.innerText = "Kayıt hatası: " + e.message;
-        } finally {
-            btn.innerText = "Yeni Hesap Oluştur"; btn.disabled = false;
+    function handleAuthChange(user) {
+        currentUser = user;
+        if (user) {
+            document.getElementById('authModal').classList.add('hidden');
+            loadUserProfile(user.id);
+        } else {
+            document.getElementById('authModal').classList.remove('hidden');
         }
     }
 
-    async function handleLogin() {
-        const errLabel = document.getElementById('authErrorMsg');
-        errLabel.classList.add('hidden');
-        
-        if(!supabaseClient) { 
-            errLabel.innerText="Veritabanı bağlantısı yok. Lütfen sayfayı yenileyin."; 
-            errLabel.classList.remove('hidden'); 
-            return; 
-        }
-        
+    async function handleAuthSubmit() {
+        if(!supabaseClient) return alert("Supabase API bilgileri eksik!");
         const email = document.getElementById('authEmail').value.trim();
         const password = document.getElementById('authPassword').value;
-        if(!email || !password) { 
-            errLabel.innerText="Email ve şifre gereklidir."; 
-            errLabel.classList.remove('hidden'); 
-            return; 
+        const err = document.getElementById('authErrorMsg');
+        const submitBtn = document.getElementById('authSubmitBtn');
+
+        if (!email || !password) {
+            err.innerText = "Lütfen e-posta ve şifrenizi girin.";
+            err.classList.remove('hidden');
+            return;
         }
-        
-        const btn = document.getElementById('authSubmitBtn');
+
+        err.classList.add('hidden');
+        submitBtn.innerText = "İşlem yapılıyor...";
+        submitBtn.disabled = true;
+
         try {
-            btn.innerText = "Bağlanıyor..."; btn.disabled = true;
-            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) throw error;
-        } catch (e) {
-            errLabel.classList.remove('hidden', 'text-emerald-600');
-            errLabel.classList.add('text-rose-500');
-            errLabel.innerText = "Giriş hatası: " + e.message;
-        } finally {
-            btn.innerText = "Giriş Yap"; btn.disabled = false;
+            if (authMode === 'login') {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+            } else {
+                const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
+                let role = document.getElementById('regRole').value;
+                if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') {
+                    role = 'admin';
+                }
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email, password,
+                    options: { data: { full_name: fullName, role: role } }
+                });
+                if (error) throw error;
+            }
+        } catch(e) {
+            err.innerText = "Hata: " + e.message;
+            err.classList.remove('hidden');
+            submitBtn.innerText = authMode === 'login' ? "Giriş Yap" : "Kullanıcı Oluştur ve Başla";
+            submitBtn.disabled = false;
         }
     }
 
@@ -598,25 +558,9 @@
         }
     }
 
-    async function handleLogout() { 
+    async function handleLogout() {
         if(supabaseClient) await supabaseClient.auth.signOut(); 
-        location.reload(); 
-    }
-
-    function getUIDataPayload() {
-        let mixedData = [];
-        document.querySelectorAll('.mixed-row').forEach(row => {
-            mixedData.push({ skuIdx: row.querySelector('.mixed-sku').value, val: row.querySelector('.mixed-val').value });
-        });
-
-        return {
-            mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
-            maxWgt: document.getElementById('maxWgt').value, targetBoxes: document.getElementById('targetBoxes').value,
-            baseType: document.getElementById('baseType').value, specificBaseSize: document.getElementById('specificBaseSize').value,
-            optFrontCurve: document.getElementById('optFrontCurve').checked, optDoor: document.getElementById('optDoor').checked,
-            optAirbag: document.getElementById('optAirbag').checked, optLashing: document.getElementById('optLashing').checked,
-            singleSkuIdx: document.getElementById('skuSelect').value, mixedData: mixedData
-        };
+        location.reload();
     }
 
     async function saveSimulation(status) {
@@ -628,7 +572,22 @@
         if (status === 'bekliyor') { btnSales.innerText = "Gönderiliyor..."; btnSales.disabled = true; } 
         else { btnLogistics.innerText = "Kaydediliyor..."; btnLogistics.disabled = true; }
 
-        let input_data = getUIDataPayload();
+        let input_data = {
+            mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
+            baseType: document.getElementById('baseType').value, optFrontCurve: document.getElementById('optFrontCurve').checked,
+            optDoor: document.getElementById('optDoor').checked, optAirbag: document.getElementById('optAirbag').checked,
+            optLashing: document.getElementById('optLashing').checked
+        };
+        
+        if (currentMode === 'single') {
+            input_data.skuSelect = document.getElementById('skuSelect').value;
+            input_data.targetBoxes = document.getElementById('targetBoxes').value;
+        } else {
+            let rows = Array.from(document.querySelectorAll('.mixed-row'));
+            input_data.mixedRows = rows.map(r => ({
+                sku: r.querySelector('.mixed-sku').value, count: r.querySelector('.mixed-val').value
+            }));
+        }
 
         const payload = {
             status: status, mode: currentMode, vehicle_type: document.getElementById('vehicleType').value, base_type: document.getElementById('baseType').value,
@@ -654,8 +613,12 @@
         if (status === 'bekliyor') { btnSales.innerHTML = "↗ Lojistik Onayına Gönder"; btnSales.disabled = false; } 
         else { btnLogistics.innerHTML = "✓ Nihai Planı Onayla"; btnLogistics.disabled = false; }
 
-        if (dbError) { alert("Kayıt hatası: " + dbError.message); } 
-        else { alert(status === 'bekliyor' ? "Talebiniz başarıyla Lojistik Onayına gönderildi!" : "✅ Yükleme planı başarıyla ONAYLANDI!"); currentSimulationId = null; }
+        if (dbError) {
+            alert("Kayıt hatası: " + dbError.message);
+        } else {
+            alert(status === 'bekliyor' ? "Talebiniz başarıyla Lojistik Onayına gönderildi!" : "✅ Yükleme planı başarıyla ONAYLANDI!");
+            currentSimulationId = null; 
+        }
     }
 
     async function loadSimulationIntoEditor(id) {
@@ -667,21 +630,19 @@
 
         switchTab(inputs.mode || 'mixed');
         document.getElementById('vehicleType').value = inputs.vehicleType;
-        document.getElementById('maxWgt').value = inputs.maxWgt || 25000;
-        document.getElementById('targetBoxes').value = inputs.targetBoxes || 0;
         document.getElementById('baseType').value = inputs.baseType;
-        document.getElementById('specificBaseSize').value = inputs.specificBaseSize || 'auto';
         document.getElementById('optFrontCurve').checked = inputs.optFrontCurve;
         document.getElementById('optDoor').checked = inputs.optDoor;
         document.getElementById('optAirbag').checked = inputs.optAirbag || false;
         document.getElementById('optLashing').checked = inputs.optLashing || false;
 
         if (inputs.mode === 'single') {
-            document.getElementById('skuSelect').value = inputs.singleSkuIdx || 0;
+            document.getElementById('skuSelect').value = inputs.skuSelect;
+            document.getElementById('targetBoxes').value = inputs.targetBoxes || 0;
             populateSKU();
         } else {
             document.getElementById('mixedList').innerHTML = ''; 
-            (inputs.mixedData || []).forEach(row => { addMixedRowWithCount(parseInt(row.skuIdx), parseInt(row.val)); });
+            inputs.mixedRows.forEach(row => { addMixedRowWithCount(parseInt(row.sku), parseInt(row.count)); });
         }
 
         updateVehicleDims(); handleBaseChange(); debouncedRunEngine(); closeDashboard();
@@ -801,7 +762,7 @@
 
     function debouncedRunEngine() {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(runEngine, 250);
+        debounceTimer = setTimeout(runEngine, 150);
     }
 
     function addMixedRowWithCount(prefillIdx, prefillCount) {
@@ -915,46 +876,29 @@
                 let c2 = Math.floor(effContW / skuObj.L); let r2 = Math.floor(effContL / skuObj.W);
                 let isRotated = (c2 * r2) > (c1 * r1);
                 let cols = isRotated ? c2 : c1;
-                let maxRows = isRotated ? r2 : r1;
                 let actualBoxW = isRotated ? skuObj.L : skuObj.W;
                 let actualBoxL = isRotated ? skuObj.W : skuObj.L;
-                let floorFit = cols * maxRows;
                 
+                let floorFit = cols * 1; 
                 let maxBoxesByWgt = Math.floor(maxWgt / skuObj.Wt);
-                let maxBoxesByVol = floorFit * physMaxLayers;
+                let maxBoxesByVol = (isRotated ? r2 : r1) * floorFit * physMaxLayers;
                 let realisticTarget = targetBoxes > 0 ? Math.min(targetBoxes, maxBoxesByWgt, maxBoxesByVol) : Math.min(maxBoxesByVol, maxBoxesByWgt);
                 
-                let minLayersNeeded = Math.ceil(realisticTarget / floorFit);
-                let activeMaxLayers = Math.min(physMaxLayers, Math.max(1, minLayersNeeded));
-
                 let remaining = realisticTarget;
-                let currentLayer = 0;
-                let boxesPerRow = new Array(maxRows).fill(0);
-                
-                while (remaining > 0 && currentLayer < activeMaxLayers) {
-                    for (let r = 0; r < maxRows; r++) {
-                        if (remaining === 0) break;
-                        let toAdd = Math.min(cols, remaining);
-                        boxesPerRow[r] += toAdd;
-                        remaining -= toAdd;
-                    }
-                    currentLayer++;
-                }
+                while (remaining > 0) {
+                    let boxesInThisRow = Math.min(remaining, floorFit * physMaxLayers);
+                    let displayLayers = Math.ceil(boxesInThisRow / floorFit);
+                    let blockW = cols * actualBoxW;
+                    let blockL = actualBoxL;
 
-                for (let r = 0; r < maxRows; r++) {
-                    if (boxesPerRow[r] > 0) {
-                        let rowBoxCount = boxesPerRow[r];
-                        let rowLayers = Math.ceil(rowBoxCount / cols);
-                        let blockW = cols * actualBoxW;
-                        let blockL = actualBoxL;
-                        
-                        itemsToPack.push({
-                            id: skuObj.name, priority: 0, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * skuObj.H, 
-                            boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: skuObj.Wt, wgt: rowBoxCount * skuObj.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
-                            palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Dökme İstif', colorSet: colorMap[0],
-                            layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, count: 1
-                        });
-                    }
+                    itemsToPack.push({
+                        id: skuObj.name, priority: 0, target: targetBoxes, count: 1, 
+                        l: blockL, w: blockW, h: displayLayers * skuObj.H, 
+                        boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: floorFit * physMaxLayers, boxWt: skuObj.Wt, wgt: boxesInThisRow * skuObj.Wt, isPartial: boxesInThisRow < (floorFit * physMaxLayers), area: blockL * blockW,
+                        palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: colorMap[0],
+                        layoutCols: cols, layoutRows: 1, layoutLayers: physMaxLayers
+                    });
+                    remaining -= boxesInThisRow;
                 }
             } else {
                 let pConfig = getBestPalletConfig(skuObj, baseType, contH, maxWgt);
@@ -967,11 +911,11 @@
                     for(let k=0; k<pallets; k++) {
                         let b = Math.min(pConfig.boxesPerLoad, realisticTarget - (k*pConfig.boxesPerLoad));
                         itemsToPack.push({
-                            id: skuObj.name, priority: 0, target: targetBoxes, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, 
+                            id: skuObj.name, priority: 0, target: targetBoxes, count: 1, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, 
                             boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: skuObj.Wt, wgt: (b * skuObj.Wt) + (baseType==='pallet'?25:0), 
                             isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW,
                             palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, 
-                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0], count: 1
+                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0]
                         });
                     }
                 }
@@ -993,44 +937,28 @@
 
                     let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
                     let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
-                    let floorFit = Math.max(c1 * r1, c2 * r2);
                     let isRotated = (c2 * r2) > (c1 * r1);
                     let cols = isRotated ? c2 : c1;
-                    let maxRows = isRotated ? r2 : r1;
                     let actualBoxW = isRotated ? sku.L : sku.W;
                     let actualBoxL = isRotated ? sku.W : sku.L;
 
-                    let minLayersNeeded = Math.ceil(targetBoxes / floorFit);
-                    let activeMaxLayers = Math.min(physMaxLayers, Math.max(1, minLayersNeeded));
-
+                    let floorFit = cols * 1; 
                     let remaining = targetBoxes;
-                    let currentLayer = 0;
-                    let boxesPerRow = new Array(maxRows).fill(0);
-                    
-                    while (remaining > 0 && currentLayer < activeMaxLayers) {
-                        for (let rx = 0; rx < maxRows; rx++) {
-                            if (remaining === 0) break;
-                            let toAdd = Math.min(cols, remaining);
-                            boxesPerRow[rx] += toAdd;
-                            remaining -= toAdd;
-                        }
-                        currentLayer++;
-                    }
 
-                    for (let rx = 0; rx < maxRows; rx++) {
-                        if (boxesPerRow[rx] > 0) {
-                            let rowBoxCount = boxesPerRow[rx];
-                            let rowLayers = Math.ceil(rowBoxCount / cols);
-                            let blockW = cols * actualBoxW;
-                            let blockL = actualBoxL;
-                            
-                            itemsToPack.push({
-                                id: sku.name, priority: idx, count: 1, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * sku.H, 
-                                boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
-                                palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
-                                layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers
-                            });
-                        }
+                    while (remaining > 0) {
+                        let boxesInThisRow = Math.min(remaining, floorFit * physMaxLayers);
+                        let displayLayers = Math.ceil(boxesInThisRow / floorFit);
+                        let blockW = cols * actualBoxW;
+                        let blockL = actualBoxL;
+
+                        itemsToPack.push({
+                            id: sku.name, priority: idx, target: targetBoxes, count: 1, 
+                            l: blockL, w: blockW, h: displayLayers * sku.H, 
+                            boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: floorFit * physMaxLayers, boxWt: sku.Wt, wgt: boxesInThisRow * sku.Wt, isPartial: boxesInThisRow < (floorFit * physMaxLayers), area: blockL * blockW,
+                            palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
+                            layoutCols: cols, layoutRows: 1, layoutLayers: physMaxLayers
+                        });
+                        remaining -= boxesInThisRow;
                     }
                 } else {
                     let pConfig = getBestPalletConfig(sku, baseType, contH, maxWgt);
@@ -1088,22 +1016,24 @@
         
         let queue = [];
         itemTypes.forEach((type) => { for(let i=0; i<Math.min(type.count, 5000); i++) queue.push({...type}); });
-        
-        // Priority Top-to-Bottom
         queue.sort((a,b) => { if (a.priority !== b.priority) return a.priority - b.priority; return b.area - a.area; });
 
         for (let i = 0; i < queue.length; i++) {
             let item = queue[i]; let baseTare = baseType === 'pallet' ? 25 : 0;
-            
+            let hitWeightLimit = false;
+
             if (totalWgt + item.wgt > maxWgt) {
                 let remWgt = maxWgt - totalWgt;
                 if (remWgt > baseTare) {
                     let allowBoxes = Math.floor((remWgt - baseTare) / item.boxWt);
-                    if (allowBoxes > 0 && allowBoxes <= item.boxesPerUnit) { 
-                        item.boxes = allowBoxes; item.wgt = (allowBoxes * item.boxWt) + baseTare; item.isPartial = true; 
+                    if (allowBoxes > 0) { 
+                        item.boxes = allowBoxes; 
+                        item.wgt = (allowBoxes * item.boxWt) + baseTare; 
+                        item.isPartial = true; 
                         item.rejectReason = "Araç toplam tonaj limiti (" + maxWgt + " kg) sınırına ulaşıldı.";
-                    } else { item.rejectReason = "Ağırlık limiti doldu."; continue; } 
-                } else { item.rejectReason = "Ağırlık limiti doldu."; continue; } 
+                        hitWeightLimit = true;
+                    } else { break; } 
+                } else { break; } 
             }
 
             let bestNode = { rectIdx: -1, isRotated: false, score1: Infinity, score2: Infinity, x: -1, y: -1 };
@@ -1128,7 +1058,7 @@
                 });
                 totalWgt += item.wgt; totalBoxes += item.boxes;
                 splitFreeRects(freeRects, bestNode.x, bestNode.y, pL, pW);
-                // DO NOT BREAK HERE! Allow the loop to continue packing the rest of the truck.
+                if (hitWeightLimit) break; 
             } else {
                 item.rejectReason = "Araç zemininde fiziksel olarak yer kalmadı.";
             }
@@ -1236,24 +1166,25 @@
 
         let tableGroups = {};
         result.placedItems.forEach(p => {
-            let gKey = p.id + '_' + p.boxes;
-            if(!tableGroups[gKey]) tableGroups[gKey] = { boxes: 0, items: 0, partials: 0, target: p.target, reason: p.rejectReason, patternName: p.patternName, boxesPerUnit: p.boxesPerUnit, colorSet: p.colorSet, priority: p.priority, layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers };
+            let gKey = p.id; 
+            if(!tableGroups[gKey]) {
+                tableGroups[gKey] = { boxes: 0, items: 0, partials: 0, target: p.target, reason: p.rejectReason, patternName: p.patternName, boxesPerUnit: p.boxesPerUnit, colorSet: p.colorSet, priority: p.priority, layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers };
+            }
             tableGroups[gKey].boxes += p.boxes; tableGroups[gKey].items++;
-            if(p.isPartial) { tableGroups[gKey].partials++; tableGroups[gKey].reason = p.rejectReason; }
+            if(p.isPartial) { tableGroups[gKey].partials++; tableGroups[gKey].reason = p.rejectReason || tableGroups[gKey].reason; }
         });
 
         let sortedGroups = Object.values(tableGroups).sort((a,b) => a.priority - b.priority);
         let tbody = document.getElementById('mixedResultsBody'); tbody.innerHTML = '';
         
         for(let tg of sortedGroups) {
-            let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let skuNameOnly = sku.split('_')[0]; // Safe print string for table
+            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
             let diagBtn = "";
             if (tg.boxes < tg.target && tg.target > 0) {
                 let reasonTxt = tg.reason || "Kapasite/Alan sınırı.";
-                diagBtn = `<button onclick="showDiagnostic('${skuNameOnly}', ${tg.target}, ${tg.boxes}, '${reasonTxt}')" class="ml-2 bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-black hover:bg-rose-200" title="Neden hedefime ulaşamadım?">?</button>`;
+                diagBtn = `<button onclick="showDiagnostic('${sku}', ${tg.target}, ${tg.boxes}, '${reasonTxt}')" class="ml-2 bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-black hover:bg-rose-200" title="Neden hedefime ulaşamadım?">?</button>`;
             }
-            tbody.innerHTML += `<tr class="border-b"><td class="p-2 font-bold flex items-center gap-2"><span class="w-3 h-3 rounded" style="background-color:${tg.colorSet.base}"></span> ${skuNameOnly} ${diagBtn}</td><td class="p-2 text-slate-500">Planlandı</td><td class="p-2 font-black text-emerald-600">${tg.boxes}</td><td class="p-2">${tg.items} Adet</td><td class="p-2">${tg.partials>0 ? '<span class="text-rose-500 text-[10px] font-bold">Eksik Kat!</span>' : '-'}</td></tr>`;
+            tbody.innerHTML += `<tr class="border-b"><td class="p-2 font-bold flex items-center gap-2"><span class="w-3 h-3 rounded" style="background-color:${tg.colorSet.base}"></span> ${sku} ${diagBtn}</td><td class="p-2 text-slate-500">Planlandı</td><td class="p-2 font-black text-emerald-600">${tg.boxes}</td><td class="p-2">${tg.items} Adet</td><td class="p-2">${tg.partials>0 ? '<span class="text-rose-500 text-[10px] font-bold">Eksik Kat!</span>' : '-'}</td></tr>`;
         }
 
         let maxLoadW = 0; let maxLoadL = 0;
@@ -1261,11 +1192,9 @@
         let gapW = (contW - 10) - maxLoadW; let gapL = (contL - 10) - maxLoadL; 
 
         let skuDetailsHtml = '';
-        
         sortedGroups.forEach((tg, idx) => {
-            let skuParts = Object.keys(tableGroups).find(k => tableGroups[k] === tg).split('_');
-            let sku = skuParts[0]; 
-            let safeSkuId = "pallet_canvas_" + idx; // Bulletproof Canvas ID Generation
+            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
+            let safeSkuId = "pallet_canvas_" + idx;
             
             let layoutStr = "";
             if (baseType === 'floor') {
@@ -1278,7 +1207,7 @@
                     </strong>
                 </div>`;
             } else {
-                let sampleItem = result.placedItems.find(p => p.id === sku && p.boxes === parseInt(skuParts[1]));
+                let sampleItem = result.placedItems.find(p => p.id === sku);
                 if (sampleItem && sampleItem.palletBlocks) {
                     let blk = sampleItem.palletBlocks[0];
                     let pCols = sampleItem.isRotated ? blk.rows : blk.cols;
@@ -1341,23 +1270,23 @@
             </div>
         `;
 
-        // Render the 2D Pallet Previews after DOM insertion
         sortedGroups.forEach((tg, idx) => {
-            let skuParts = Object.keys(tableGroups).find(k => tableGroups[k] === tg).split('_');
-            let sku = skuParts[0];
-            let boxCount = parseInt(skuParts[1]);
-            let sampleItem = result.placedItems.find(p => p.id === sku && p.boxes === boxCount);
-            if(sampleItem) drawPalletPreview(`pallet_canvas_${idx}`, sampleItem, baseType);
+            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
+            let safeSkuId = "pallet_canvas_" + idx;
+            let sampleItem = result.placedItems.find(p => p.id === sku);
+            if(sampleItem) drawPalletPreview(safeSkuId, sampleItem, baseType);
         });
 
         drawIsometricMixedCanvas(result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX);
     }
 
-    // ==========================================
-    // 🚀 3D ISOMETRIC RENDERING ENGINE (PERFECT PROJECTION)
-    // ==========================================
     function drawIsometricMixedCanvas(placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX) {
         const canvas = document.getElementById('contCanvas'); 
+        if(!canvas) return;
+        
+        canvas.width = canvas.parentElement.clientWidth || 900;
+        canvas.height = canvas.parentElement.clientHeight || 500;
+        
         const ctx = canvas.getContext('2d'); 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1372,8 +1301,7 @@
         });
         if (placedItems.length === 0) { minX = 0; maxX = 0; minY = 0; maxY = 0; }
         
-        let totalLoadL = maxX - minX; 
-        let totalLoadW = maxY - minY; 
+        let totalLoadL = maxX - minX; let totalLoadW = maxY - minY; 
         let offsetY = ((contW - 10) - totalLoadW) / 2; 
 
         let blocks3D = [];
@@ -1385,7 +1313,6 @@
 
         let drawL = contL; let drawW = contW; let drawH = contH;
         
-        // Exact Bounding Box in Isometric Space
         let uMin = -drawW * cosA;
         let uMax = drawL * cosA;
         let vMin = -drawH;
@@ -1397,7 +1324,7 @@
         let uCenter = (uMin + uMax) / 2;
         let vCenter = (vMin + vMax) / 2;
         
-        let pad = 40;
+        let pad = 60;
         let scale = Math.min((canvas.width - pad*2) / spanU, (canvas.height - pad*2) / spanV);
 
         let cx = canvas.width / 2;
@@ -1406,10 +1333,7 @@
         function project(px, py, pz) {
             let u = (px - py) * cosA;
             let v = (px + py) * sinA - pz;
-            return {
-                x: cx + (u - uCenter) * scale,
-                y: cy + (v - vCenter) * scale
-            };
+            return { x: cx + (u - uCenter) * scale, y: cy + (v - vCenter) * scale };
         }
 
         function drawPolygon(pts, color, strokeColor = 'rgba(0,0,0,0.15)') {
@@ -1418,7 +1342,6 @@
             ctx.closePath(); ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = strokeColor; ctx.stroke();
         }
 
-        // Draw Container Base & Walls
         let w0 = project(0, 0, 0); 
         let wX = project(drawL, 0, 0); 
         let wY = project(0, drawW, 0);
@@ -1426,19 +1349,17 @@
         let wXZ = project(drawL, 0, drawH); 
         let wYZ = project(0, drawW, drawH);
         
-        drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155'); // Floor
-        drawPolygon([w0, wX, wXZ, wZ], '#1e293b'); // Back Left Wall
-        drawPolygon([w0, wY, wYZ, wZ], '#0f172a'); // Back Right Wall
+        drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155'); 
+        drawPolygon([w0, wX, wXZ, wZ], '#1e293b'); 
+        drawPolygon([w0, wY, wYZ, wZ], '#0f172a'); 
         
         if (optFrontCurve) {
             let b0 = project(0,0,0); let bX = project(100,0,0); let bY = project(0,drawW,0); let bXY = project(100,drawW,0);
             drawPolygon([b0, bX, bXY, bY], 'rgba(234, 179, 8, 0.4)');
         }
 
-        // Depth Sorting (Back-to-front rendering)
         blocks3D.sort((a,b) => (a.x + a.y + a.z) - (b.x + b.y + b.z));
 
-        // Draw Cargo Blocks
         blocks3D.forEach(b => {
             let p0 = project(b.x, b.y, b.z);
             let px = project(b.x + b.l, b.y, b.z);
@@ -1449,9 +1370,9 @@
             let pyz = project(b.x, b.y + b.w, b.z + b.h);
             let pxyz = project(b.x + b.l, b.y + b.w, b.z + b.h);
 
-            drawPolygon([px, pxy, pxyz, pxz], b.cRight); // Right Face
-            drawPolygon([py, pxy, pxyz, pyz], b.cLeft);  // Left Face
-            drawPolygon([p0z, pxz, pxyz, pyz], b.cTop);  // Top Face
+            drawPolygon([px, pxy, pxyz, pxz], b.cRight); 
+            drawPolygon([py, pxy, pxyz, pyz], b.cLeft);  
+            drawPolygon([p0z, pxz, pxyz, pyz], b.cTop);  
 
             let centerTop = project(b.x + b.l/2, b.y + b.w/2, b.z + b.h);
             ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
@@ -1459,7 +1380,6 @@
             ctx.fillText(b.label, centerTop.x, centerTop.y);
         });
 
-        // Center of Gravity Target (CoG)
         if (placedItems.length > 0) {
             let cogPt = project(cogX, offsetY + totalLoadW/2, drawH/2); 
             ctx.beginPath(); ctx.arc(cogPt.x, cogPt.y, 7, 0, 2*Math.PI);
@@ -1468,7 +1388,6 @@
             ctx.fillStyle = '#ffffff'; ctx.font = 'bold 8px Inter'; ctx.fillText('⌖ CoG', cogPt.x, cogPt.y - 10);
         }
 
-        // Front Door & Lashing
         if (useLashing && placedItems.length > 0 && drawL - totalLoadL > 200) {
             let lashX = totalLoadL + (optFrontCurve ? 100 : 0);
             let l0 = project(lashX, 0, 0); let lY = project(lashX, drawW, 0);
