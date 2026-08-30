@@ -32,38 +32,24 @@
             .h-screen { height: auto !important; }
             .flex-grow, .overflow-y-auto, .overflow-hidden { overflow: visible !important; height: auto !important; max-height: none !important; }
             .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            .print-flex { display: flex !important; }
+            .print-grid { display: grid !important; }
+            .print-full-width { width: 100% !important; max-width: 100% !important; display: block !important; border: none !important; padding: 0 !important; margin: 0 !important; }
+            .print-stats { grid-template-columns: repeat(4, 1fr) !important; gap: 10px !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .shadow-sm, .shadow-md, .shadow-xl, .shadow-2xl { box-shadow: none !important; border: 1px solid #cbd5e1 !important; }
+            .p-3 { padding: 0.4rem !important; }
+            .p-5 { padding: 0.5rem !important; }
+            .mb-4 { margin-bottom: 0.5rem !important; }
+            .mb-2 { margin-bottom: 0.25rem !important; }
+            .text-sm { font-size: 0.70rem !important; }
+            .text-xs { font-size: 0.60rem !important; }
             .print-break-inside-avoid { break-inside: avoid; page-break-inside: avoid; margin-bottom: 10px !important; }
+            canvas { max-width: 100% !important; height: auto !important; page-break-inside: avoid; }
             .print-page-2 { page-break-before: always !important; break-before: page !important; margin-top: 0 !important; }
         }
     </style>
-    
-    <script>
-        // ==========================================
-        // SUPABASE CONNECTION
-        // ==========================================
-        const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
-        
-        let supabaseClient = null;
-        let currentUser = null;
-        let currentUserProfile = null;
-        let authMode = 'login';
-        let lastComputedResult = null;
-        let currentSimulationId = null;
-
-        window.addEventListener('DOMContentLoaded', () => {
-            if (window.supabase) {
-                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                supabaseClient.auth.getSession().then(({ data: { session } }) => { 
-                    if (session) handleAuthChange(session.user); 
-                });
-                supabaseClient.auth.onAuthStateChange((_event, session) => { 
-                    handleAuthChange(session?.user || null); 
-                });
-            }
-            init();
-        });
-    </script>
 </head>
 <body class="p-0 md:p-4 h-screen flex flex-col">
 
@@ -72,14 +58,14 @@
     <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full border-t-8 border-rose-500">
         <div class="flex justify-between items-start mb-4">
             <h3 class="text-xl font-black text-slate-800">Sınırlandırma Raporu</h3>
-            <button onclick="closeModal('diagnosticModal')" class="text-slate-400 hover:text-rose-500 font-bold">X</button>
+            <button onclick="closeModal('diagnosticModal')" class="text-slate-400 hover:text-rose-500 font-bold">✕</button>
         </div>
         <div id="diagnosticContent" class="text-sm text-slate-700 space-y-3"></div>
         <button onclick="closeModal('diagnosticModal')" class="w-full mt-5 bg-slate-900 text-white font-bold py-2 rounded-lg hover:bg-slate-800">Anladım</button>
     </div>
 </div>
 
-<!-- AUTHENTICATION MODAL -->
+<!-- 1. AUTHENTICATION MODAL -->
 <div id="authModal" class="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4">
     <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border-t-8 border-sky-500">
         <div class="flex items-center gap-3 mb-2 justify-center">
@@ -96,7 +82,7 @@
         <div id="registerFields" class="hidden space-y-3 mb-3">
             <div>
                 <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Ad Soyad</label>
-                <input type="text" id="regFullName" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none">
+                <input type="text" id="regFullName" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none" placeholder="Ad Soyad">
             </div>
             <div>
                 <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Departman Yetkisi</label>
@@ -110,20 +96,20 @@
         <div class="space-y-3">
             <div>
                 <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">E-Posta</label>
-                <input type="email" id="authEmail" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none">
+                <input type="email" id="authEmail" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none" placeholder="ornek@sirket.com">
             </div>
             <div>
                 <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Şifre</label>
-                <input type="password" id="authPassword" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none">
+                <input type="password" id="authPassword" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none" placeholder="••••••••">
             </div>
         </div>
 
-        <button id="authSubmitBtn" onclick="handleLogin()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-xl transition-all shadow-md mt-6 text-sm">Giriş Yap</button>
+        <button id="authSubmitBtn" onclick="handleAuthSubmit()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-xl transition-all shadow-md mt-6 text-sm">Giriş Yap</button>
         <p id="authErrorMsg" class="text-rose-500 text-xs font-bold text-center mt-3 hidden"></p>
     </div>
 </div>
 
-<!-- INBOX / DASHBOARD MODAL -->
+<!-- 2. INBOX / DASHBOARD MODAL -->
 <div id="adminDashboardModal" class="hidden fixed inset-0 bg-slate-900/80 z-40 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-2xl max-w-[1000px] w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
         <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
@@ -131,7 +117,7 @@
                 <span class="text-lg">📥</span>
                 <h3 class="font-bold text-base">Gelen Talepler & Onay Geçmişi</h3>
             </div>
-            <button onclick="closeDashboard()" class="text-slate-400 hover:text-white font-black text-lg">&times;</button>
+            <button onclick="closeDashboard()" class="text-slate-400 hover:text-white font-black text-lg">✕</button>
         </div>
         <div class="p-6 overflow-y-auto flex-grow custom-scrollbar">
             <div id="dashboardLoading" class="text-center text-slate-400 py-8 font-semibold">Kayıtlar yükleniyor, lütfen bekleyin...</div>
@@ -152,7 +138,7 @@
     </div>
 </div>
 
-<!-- ALARM MODAL -->
+<!-- 3. ALARM MODAL -->
 <div id="alarmModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center no-print px-4">
     <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full border-t-8 border-rose-500 transform transition-all">
         <div class="flex items-center gap-3 mb-3">
@@ -166,12 +152,12 @@
 
 <!-- TOP NAVIGATION BAR -->
 <nav class="bg-slate-900 text-white shadow-md rounded-t-xl md:rounded-xl mx-auto max-w-[1400px] w-full z-10 relative no-print mb-4">
-    <div class="px-4 md:px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
-        <div class="flex items-center gap-3 w-full md:w-auto">
+    <div class="px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
+        <div class="flex items-center gap-3">
             <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center font-black text-xl tracking-tighter">E</div>
             <div>
-                <h1 class="text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">OptiLoad</span></h1>
-                <p class="text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Dinamik & Statik Saha Operasyon Planlayıcısı</p>
+                <h1 class="text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">3D OptiLoad</span></h1>
+                <p class="text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Gelişmiş Fizik & 3D Yükleme Simülatörü</p>
             </div>
         </div>
 
@@ -181,14 +167,17 @@
                 <span id="userEmailLabel" class="text-slate-300 font-medium">user@example.com</span>
             </div>
 
+            <!-- Dashboard Button (Logistics & Admin) -->
             <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
                 📥 Gelen Talepler
             </button>
 
+            <!-- Sales Submission Button -->
             <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
                 ↗ Lojistik Onayına Gönder
             </button>
 
+            <!-- Logistics Approval Button -->
             <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
                 ✓ Nihai Planı Onayla
             </button>
@@ -334,9 +323,9 @@
             </div>
         </div>
 
-        <div id="layerOptimizationInfo" class="hidden print-break-inside-avoid"><div id="optimizationDetailsList"></div></div>
+        <div id="layerOptimizationInfo" class="print-break-inside-avoid"><div id="optimizationDetailsList"></div></div>
 
-        <!-- THIS DIV MOVES TO PAGE 2 ON PRINT -->
+        <!-- 3D DISPLAY CARD (PAGE 2 ON PRINT) -->
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col flex-grow min-h-[450px] print-break-inside-avoid relative print-page-2">
             <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 rounded-t-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 z-10 relative">
                 <span class="text-sm font-bold text-slate-700">3D İZOMETRİK YÜKLEME SİMÜLASYONU</span>
@@ -355,7 +344,7 @@
             </div>
 
             <!-- 3D KANVAS -->
-            <div class="flex-grow flex items-center justify-center p-4 bg-slate-800 relative rounded-b-xl overflow-hidden">
+            <div class="flex-grow flex items-center justify-center p-4 bg-slate-800 relative rounded-b-xl overflow-hidden min-h-[380px]">
                 <canvas id="contCanvas" width="900" height="500" class="max-w-full w-full object-contain"></canvas>
             </div>
         </div>
@@ -364,8 +353,110 @@
 
 <script>
     // ==========================================
-    // AUTH & SUPABASE CLOUD SYNC LOGIC
+    // SUPABASE CLIENT INITIALIZATION
     // ==========================================
+    const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
+    
+    let supabaseClient = null;
+    let currentUser = null;
+    let currentUserProfile = null;
+    let authMode = 'login';
+    let lastComputedResult = null;
+    let currentSimulationId = null;
+
+    // ==========================================
+    // DATABASE & GLOBAL VARIABLES
+    // ==========================================
+    const skuDatabase = [
+        {name: "0,750*12 İNCEBELLİ", L: 262, W: 279, H: 278, Wt: 8.83, maxLayers: 9},
+        {name: "0,75*20 BÜKLÜM", L: 319, W: 402, H: 273, Wt: 14.69, maxLayers: 9},
+        {name: "0,85*12 YENİ VK BÜKLÜM", L: 232, W: 308, H: 267, Wt: 9.68, maxLayers: 9},
+        {name: "0,85*12 VK BÜKLÜM", L: 252, W: 332, H: 242, Wt: 10.50, maxLayers: 9},
+        {name: "0,9*12 VK BÜKLÜM", L: 252, W: 332, H: 252, Wt: 10.23, maxLayers: 9},
+        {name: "0,9*20 VK BÜKLÜM", L: 418, W: 332, H: 252, Wt: 17.05, maxLayers: 9},
+        {name: "1*20 İNCEBELLİ", L: 342, W: 417, H: 298, Wt: 19.73, maxLayers: 8},
+        {name: "1*12 İNCEBELLİ", L: 282, W: 317, H: 298, Wt: 11.95, maxLayers: 9},
+        {name: "2*6 İNCEBELLİ", L: 268, W: 297, H: 328, Wt: 11.81, maxLayers: 7},
+        {name: "1,8*6 İNCEBELLİ", L: 259, W: 284, H: 333, Wt: 10.72, maxLayers: 8},
+        {name: "1*20 VK BÜKLÜM", L: 332, W: 414, H: 271, Wt: 19.06, maxLayers: 8},
+        {name: "1*12 VK BÜKLÜM", L: 250, W: 332, H: 271, Wt: 11.69, maxLayers: 8},
+        {name: "1*15 VK BÜKLÜM", L: 250, W: 414, H: 271, Wt: 14.43, maxLayers: 8},
+        {name: "1*20 BÜKLÜM", L: 323, W: 404, H: 298, Wt: 19.63, maxLayers: 8},
+        {name: "1*15 BÜKLÜM", L: 242, W: 405, H: 298, Wt: 14.43, maxLayers: 8},
+        {name: "1*12 BÜKLÜM", L: 242, W: 324, H: 298, Wt: 11.70, maxLayers: 8},
+        {name: "2*6 BÜKLÜM", L: 219, W: 324, H: 326, Wt: 11.70, maxLayers: 7},
+        {name: "1,8*6 BÜKLÜM", L: 214, W: 317, H: 326, Wt: 10.60, maxLayers: 8},
+        {name: "1,5*6 KULPLU", L: 224, W: 272, H: 311, Wt: 9.13, maxLayers: 7},
+        {name: "1,8*6 KULPLU", L: 177, W: 394, H: 308, Wt: 10.80, maxLayers: 7},
+        {name: "1*12 KARE MARRE", L: 234, W: 304, H: 269, Wt: 11.66, maxLayers: 6},
+        {name: "3*6 YUVARLAK", L: 254, W: 379, H: 312, Wt: 17.63, maxLayers: 6},
+        {name: "3*6 KÖŞELİ", L: 254, W: 379, H: 338, Wt: 17.64, maxLayers: 6},
+        {name: "4*4 KARE", L: 264, W: 299, H: 315, Wt: 15.24, maxLayers: 6},
+        {name: "4*4 KAVANOZ", L: 344, W: 344, H: 252, Wt: 15.21, maxLayers: 6},
+        {name: "4,5*4 KARE", L: 264, W: 299, H: 345, Wt: 17.32, maxLayers: 6},
+        {name: "5*4 KUBBELİ*", L: 330, W: 330, H: 351, Wt: 19.42, maxLayers: 6},
+        {name: "5*4 KAVANOZ", L: 369, W: 369, H: 280, Wt: 19.75, maxLayers: 6},
+        {name: "5*4 YAPRAK", L: 279, W: 388, H: 345, Wt: 19.75, maxLayers: 6},
+        {name: "5*4 KARE", L: 264, W: 299, H: 375, Wt: 19.23, maxLayers: 6},
+        {name: "5 L Tin Can (Teneke) 4'lü", L: 320, W: 248, H: 327, Wt: 19.84, maxLayers: 4},
+        {name: "5 L Tin Can (Teneke) 4'lü+Koli", L: 320, W: 248, H: 327, Wt: 20.27, maxLayers: 4},
+        {name: "10 L Tin Can (Teneke)", L: 205, W: 205, H: 304, Wt: 9.81, maxLayers: 5},
+        {name: "16 L Tin Can (Teneke)", L: 244, W: 244, H: 323, Wt: 15.59, maxLayers: 4},
+        {name: "18 L Tin Can (Teneke)", L: 244, W: 244, H: 359, Wt: 17.43, maxLayers: 4},
+        {name: "20 L Jerry Can (Bidon)", L: 244, W: 291, H: 393, Wt: 19.20, maxLayers: 4} 
+    ];
+
+    let currentMode = 'single';
+    const colorMap = [
+        { base: '#0284c7', top: '#38bdf8', right: '#0369a1', left: '#075985' }, 
+        { base: '#16a34a', top: '#4ade80', right: '#15803d', left: '#166534' }, 
+        { base: '#d97706', top: '#fbbf24', right: '#b45309', left: '#92400e' }, 
+        { base: '#9333ea', top: '#c084fc', right: '#7e22ce', left: '#6b21a8' }, 
+        { base: '#db2777', top: '#f472b6', right: '#be185d', left: '#9d174d' }, 
+        { base: '#ea580c', top: '#fb923c', right: '#c2410c', left: '#9a3412' }  
+    ];
+
+    let debounceTimer;
+    let dragSrcEl = null;
+
+    // ==========================================
+    // INITIALIZATION & UI CONTROLS
+    // ==========================================
+    function init() {
+        populateSelects();
+        populateSKU();
+        addMixedRowWithCount(11, 400); 
+        addMixedRowWithCount(29, 200); 
+        updateVehicleDims();
+        handleBaseChange();
+        runEngine();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.supabase) {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            supabaseClient.auth.getSession().then(({ data: { session } }) => { 
+                if (session) handleAuthChange(session.user); 
+            });
+            supabaseClient.auth.onAuthStateChange((_event, session) => { 
+                handleAuthChange(session?.user || null); 
+            });
+        }
+        init();
+    });
+
+    // --- SUPABASE AUTH EVENTS ---
+    function handleAuthChange(user) {
+        currentUser = user;
+        if (user) {
+            document.getElementById('authModal').classList.add('hidden');
+            loadUserProfile(user.id);
+        } else {
+            document.getElementById('authModal').classList.remove('hidden');
+        }
+    }
+
     function switchAuthTab(mode) {
         authMode = mode;
         const btnLogin = document.getElementById('authTabLogin');
@@ -380,23 +471,19 @@
             btnReg.className = "flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent";
             regFields.classList.add('hidden');
             submitBtn.innerText = "Giriş Yap";
-            submitBtn.onclick = handleLogin;
         } else {
             btnReg.className = "flex-1 py-2 font-bold text-sm border-b-2 border-sky-500 text-sky-600";
             btnLogin.className = "flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent";
             regFields.classList.remove('hidden');
             submitBtn.innerText = "Yeni Hesap Oluştur";
-            submitBtn.onclick = handleRegister;
         }
     }
 
-    function handleAuthChange(user) {
-        currentUser = user;
-        if (user) {
-            document.getElementById('authModal').classList.add('hidden');
-            loadUserProfile(user.id);
+    async function handleAuthSubmit() {
+        if (authMode === 'login') {
+            await handleLogin();
         } else {
-            document.getElementById('authModal').classList.remove('hidden');
+            await handleRegister();
         }
     }
 
@@ -420,8 +507,7 @@
         
         const btn = document.getElementById('authSubmitBtn');
         try {
-            btn.innerText = "Kaydediliyor..."; 
-            btn.disabled = true;
+            btn.innerText = "Kaydediliyor..."; btn.disabled = true;
             
             const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
             let role = document.getElementById('regRole').value;
@@ -433,16 +519,16 @@
             
             if (error) throw error;
             
-            errLabel.innerText = "Kayıt başarılı! Lütfen giriş yapın.";
+            errLabel.innerText = "Kayıt başarılı! Giriş yapabilirsiniz.";
             errLabel.classList.remove('hidden', 'text-rose-500');
             errLabel.classList.add('text-emerald-600');
+            switchAuthTab('login');
         } catch (e) {
             errLabel.classList.remove('hidden', 'text-emerald-600');
             errLabel.classList.add('text-rose-500');
             errLabel.innerText = "Kayıt hatası: " + e.message;
         } finally {
-            btn.innerText = "Yeni Hesap Oluştur"; 
-            btn.disabled = false;
+            btn.innerText = "Yeni Hesap Oluştur"; btn.disabled = false;
         }
     }
 
@@ -466,8 +552,7 @@
         
         const btn = document.getElementById('authSubmitBtn');
         try {
-            btn.innerText = "Bağlanıyor..."; 
-            btn.disabled = true;
+            btn.innerText = "Bağlanıyor..."; btn.disabled = true;
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) throw error;
         } catch (e) {
@@ -475,8 +560,7 @@
             errLabel.classList.add('text-rose-500');
             errLabel.innerText = "Giriş hatası: " + e.message;
         } finally {
-            btn.innerText = "Giriş Yap"; 
-            btn.disabled = false;
+            btn.innerText = "Giriş Yap"; btn.disabled = false;
         }
     }
 
@@ -519,7 +603,10 @@
         }
     }
 
-    async function handleLogout() { if(supabaseClient) await supabaseClient.auth.signOut(); location.reload(); }
+    async function handleLogout() { 
+        if(supabaseClient) await supabaseClient.auth.signOut(); 
+        location.reload(); 
+    }
 
     function getUIDataPayload() {
         let mixedData = [];
@@ -532,6 +619,7 @@
             maxWgt: document.getElementById('maxWgt').value, targetBoxes: document.getElementById('targetBoxes').value,
             baseType: document.getElementById('baseType').value, specificBaseSize: document.getElementById('specificBaseSize').value,
             optFrontCurve: document.getElementById('optFrontCurve').checked, optDoor: document.getElementById('optDoor').checked,
+            optAirbag: document.getElementById('optAirbag').checked, optLashing: document.getElementById('optLashing').checked,
             singleSkuIdx: document.getElementById('skuSelect').value, mixedData: mixedData
         };
     }
@@ -590,16 +678,18 @@
         document.getElementById('specificBaseSize').value = inputs.specificBaseSize || 'auto';
         document.getElementById('optFrontCurve').checked = inputs.optFrontCurve;
         document.getElementById('optDoor').checked = inputs.optDoor;
+        document.getElementById('optAirbag').checked = inputs.optAirbag || false;
+        document.getElementById('optLashing').checked = inputs.optLashing || false;
 
         if (inputs.mode === 'single') {
             document.getElementById('skuSelect').value = inputs.singleSkuIdx || 0;
             populateSKU();
         } else {
             document.getElementById('mixedList').innerHTML = ''; 
-            inputs.mixedRows.forEach(row => { addMixedRowWithCount(parseInt(row.skuIdx), parseInt(row.val)); });
+            (inputs.mixedData || []).forEach(row => { addMixedRowWithCount(parseInt(row.skuIdx), parseInt(row.val)); });
         }
 
-        updateVehicleDims(); handleBaseChange(); debouncedRunEngine(); closeDashboard();
+        updateVehicleDims(); handleBaseChange(); runEngine(); closeDashboard();
         
         if (currentUserProfile.role === 'admin') {
             showAlert(`Yönetici Modu: Onaylanan plan incelenmek üzere ekrana yüklendi.\n\nÜst menüden 'Saha Formunu Yazdır' butonuna basarak PDF olarak kaydedebilirsiniz.`);
@@ -663,12 +753,6 @@
         const select = document.getElementById('skuSelect');
         select.innerHTML = "";
         skuDatabase.forEach((sku, idx) => select.options.add(new Option(`${sku.name} (${sku.L}x${sku.W}x${sku.H})`, idx)));
-        
-        document.querySelectorAll('.mixed-sku').forEach(sel => {
-            let val = sel.value; sel.innerHTML = "";
-            skuDatabase.forEach((sku, idx) => sel.options.add(new Option(`${sku.name} (${sku.L}x${sku.W}x${sku.H})`, idx)));
-            sel.value = val || 0;
-        });
     }
 
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -682,8 +766,7 @@
         document.getElementById('tab-mixed').className = mode === 'mixed' ? 'tab-btn active text-sm text-center py-3' : 'tab-btn text-sm text-slate-500 text-center py-3';
         document.getElementById('panel-single').style.display = mode === 'single' ? 'block' : 'none';
         document.getElementById('panel-mixed').style.display = mode === 'mixed' ? 'block' : 'none';
-        document.getElementById('targetBoxesGroup').style.display = mode === 'single' ? 'block' : 'none';
-        debouncedRunEngine(); 
+        runEngine(); 
     }
 
     function handleBaseChange() {
@@ -716,7 +799,7 @@
 
     function debouncedRunEngine() {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(runEngine, 300);
+        debounceTimer = setTimeout(runEngine, 250);
     }
 
     function addMixedRowWithCount(prefillIdx, prefillCount) {
@@ -797,7 +880,7 @@
     }
 
     // ==========================================
-    // CORE ALGORITHM
+    // CORE 3D ALGORITHM & PACKING
     // ==========================================
     function runEngine() {
         document.getElementById('mixedResultsTable').style.display = currentMode === 'mixed' ? 'block' : 'none';
@@ -940,7 +1023,7 @@
                             let blockL = actualBoxL;
                             
                             itemsToPack.push({
-                                id: sku.name, priority: idx, count: 1, l: blockL, w: blockW, h: rowLayers * sku.H, 
+                                id: sku.name, priority: idx, target: targetBoxes, count: 1, l: blockL, w: blockW, h: rowLayers * sku.H, 
                                 boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
                                 palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
                                 layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers
@@ -961,6 +1044,7 @@
         }
 
         let result = unifiedPacker(itemsToPack, effContL, effContW, maxWgt, baseType);
+        lastComputedResult = result;
         updateUnifiedUI(result, contL, contW, maxWgt, baseType, optFrontCurve, titleText);
     }
 
@@ -1004,7 +1088,6 @@
         let queue = [];
         itemTypes.forEach((type) => { for(let i=0; i<Math.min(type.count, 5000); i++) queue.push({...type}); });
         
-        // Priority Top-to-Bottom
         queue.sort((a,b) => { if (a.priority !== b.priority) return a.priority - b.priority; return b.area - a.area; });
 
         for (let i = 0; i < queue.length; i++) {
@@ -1066,7 +1149,9 @@
         for (let i = 0; i < newRects.length; i++) {
             let isEncl = false;
             for (let j = 0; j < newRects.length; j++) {
-                if (i !== j && newRects[i].x >= newRects[j].x && newRects[i].y >= newRects[j].y && newRects[i].x + newRects[i].l <= newRects[j].x + newRects[j].l && newRects[i].y + newRects[i].w <= newRects[j].y + newRects[j].w) { isEncl = true; break; }
+                if (i !== j && newRects[i].x >= newRects[j].x && newRects[i].y >= newRects[j].y && newRects[i].x + newRects[i].l <= newRects[j].x + newRects[j].l && newRects[i].y + newRects[i].w <= newRects[j].y + newRects[j].w) {
+                    isEncl = true; break;
+                }
             }
             if (!isEncl) freeRects.push(newRects[i]);
         }
@@ -1101,7 +1186,7 @@
             let bOffsetX = ((patL * scale) - (loadL * scale)) / 2;
             let bOffsetY = ((patW * scale) - (loadW * scale)) / 2;
             ctx.translate(bOffsetX, bOffsetY);
-            for(let r=0; r<1; r++){ // Just show one row depth for floor preview
+            for(let r=0; r<1; r++){
                 for(let c=0; c<item.layoutCols; c++){
                     ctx.fillStyle = item.colorSet.top;
                     ctx.fillRect(r * item.palletBlocks[0].l * scale, c * item.palletBlocks[0].w * scale, item.palletBlocks[0].l * scale - 1, item.palletBlocks[0].w * scale - 1);
@@ -1136,13 +1221,12 @@
     }
 
     function updateUnifiedUI(result, contL, contW, maxWgt, baseType, optFrontCurve, titleText) {
-        document.getElementById('layerOptimizationInfo').style.display = 'block'; 
         document.getElementById('resTotalBoxes').innerText = result.totalBoxes.toLocaleString();
         document.getElementById('resWeight').innerText = `${result.totalWgt.toLocaleString(undefined, {maximumFractionDigits:1})} kg`;
         document.getElementById('resLoads').innerText = `${result.placedItems.length} İstif`;
         
-        let momentX = 0, momentY = 0;
-        result.placedItems.forEach(p => { momentX += (p.x + p.l/2) * p.wgt; momentY += (p.y + p.w/2) * p.wgt; });
+        let momentX = 0;
+        result.placedItems.forEach(p => { momentX += (p.x + p.l/2) * p.wgt; });
         let cogX = result.totalWgt > 0 ? (momentX / result.totalWgt) : 0;
         
         let weightPct = Math.min(100, Math.round((result.totalWgt / maxWgt) * 100));
@@ -1176,7 +1260,7 @@
         let skuDetailsHtml = '';
         for(let tg of sortedGroups) {
             let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let safeSkuId = sku.replace(/\W/g, ''); 
+            let safeSkuId = sku.replace(/[^a-zA-Z0-9]/g, '_');
             
             let layoutStr = "";
             if (baseType === 'floor') {
@@ -1254,7 +1338,7 @@
 
         for(let tg of sortedGroups) {
             let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let safeSkuId = sku.replace(/\W/g, '');
+            let safeSkuId = sku.replace(/[^a-zA-Z0-9]/g, '_');
             let sampleItem = result.placedItems.find(p => p.id === sku);
             if(sampleItem) drawPalletPreview(`pallet_canvas_${safeSkuId}`, sampleItem, baseType);
         }
@@ -1262,13 +1346,17 @@
         drawIsometricMixedCanvas(result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX);
     }
 
+    // ==========================================
+    // 🚀 3D ISOMETRIC RENDERING ENGINE (PERFECT PROJECTION)
+    // ==========================================
     function drawIsometricMixedCanvas(placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX) {
         const canvas = document.getElementById('contCanvas'); 
         const ctx = canvas.getContext('2d'); 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const angle = 0.523599; // 30 degrees for isometric
-        const cosA = Math.cos(angle); const sinA = Math.sin(angle);
+        const angle = 0.523599; // 30 degrees isometric
+        const cosA = Math.cos(angle); 
+        const sinA = Math.sin(angle);
         
         let minX = Infinity; let maxX = 0; let minY = Infinity; let maxY = 0;
         placedItems.forEach(item => {
@@ -1277,7 +1365,8 @@
         });
         if (placedItems.length === 0) { minX = 0; maxX = 0; minY = 0; maxY = 0; }
         
-        let totalLoadL = maxX - minX; let totalLoadW = maxY - minY; 
+        let totalLoadL = maxX - minX; 
+        let totalLoadW = maxY - minY; 
         let offsetY = ((contW - 10) - totalLoadW) / 2; 
 
         let blocks3D = [];
@@ -1288,43 +1377,52 @@
         });
 
         let drawL = contL; let drawW = contW; let drawH = contH;
-        let isoMaxWidth = (drawL + drawW) * cosA;
-        let isoMaxHeight = (drawL + drawW) * sinA + drawH;
         
-        let pad = 50;
-        let scale = Math.min((canvas.width - pad*2) / isoMaxWidth, (canvas.height - pad*2) / isoMaxHeight) * 0.9;
+        // Exact Bounding Box in Isometric Space
+        let spanU = (drawL + drawW) * cosA;
+        let spanV = (drawL + drawW) * sinA + drawH;
+        let midU = (drawL - drawW) * cosA / 2;
+        let midV = ((drawL + drawW) * sinA - drawH) / 2;
         
-        let cx = canvas.width / 2;
-        let cy = canvas.height / 2 + (isoMaxHeight * scale / 2) - pad;
+        let pad = 40;
+        let scale = Math.min((canvas.width - pad*2) / spanU, (canvas.height - pad*2) / spanV);
 
         function project(px, py, pz) {
-            let sx = (px - py) * cosA * scale; let sy = ((px + py) * sinA - pz) * scale;
-            return { x: cx + sx, y: cy + sy };
+            let u = (px - py) * cosA;
+            let v = (px + py) * sinA - pz;
+            return {
+                x: (canvas.width / 2) + (u - midU) * scale,
+                y: (canvas.height / 2) + (v - midV) * scale
+            };
         }
 
-        function drawPolygon(pts, color, strokeColor = 'rgba(0,0,0,0.1)') {
+        function drawPolygon(pts, color, strokeColor = 'rgba(0,0,0,0.15)') {
             ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
             for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
             ctx.closePath(); ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = strokeColor; ctx.stroke();
         }
 
         // Draw Container Base & Walls
-        let w0 = project(0, 0, 0); let wX = project(drawL, 0, 0); let wY = project(0, drawW, 0);
-        let wZ = project(0, 0, drawH); let wXZ = project(drawL, 0, drawH); let wYZ = project(0, drawW, drawH);
+        let w0 = project(0, 0, 0); 
+        let wX = project(drawL, 0, 0); 
+        let wY = project(0, drawW, 0);
+        let wZ = project(0, 0, drawH); 
+        let wXZ = project(drawL, 0, drawH); 
+        let wYZ = project(0, drawW, drawH);
         
         drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155'); // Floor
-        drawPolygon([w0, wX, wXZ, wZ], '#1e293b'); // Back Left
-        drawPolygon([w0, wY, wYZ, wZ], '#0f172a'); // Back Right
+        drawPolygon([w0, wX, wXZ, wZ], '#1e293b'); // Back Left Wall
+        drawPolygon([w0, wY, wYZ, wZ], '#0f172a'); // Back Right Wall
         
         if (optFrontCurve) {
             let b0 = project(0,0,0); let bX = project(100,0,0); let bY = project(0,drawW,0); let bXY = project(100,drawW,0);
             drawPolygon([b0, bX, bXY, bY], 'rgba(234, 179, 8, 0.4)');
         }
 
-        // Z-Buffer sorting for isometric (Back to front)
-        blocks3D.sort((a,b) => { return (a.x + a.y + a.z) - (b.x + b.y + b.z); });
+        // Depth Sorting (Back-to-front rendering)
+        blocks3D.sort((a,b) => (a.x + a.y + a.z) - (b.x + b.y + b.z));
 
-        // Draw the Cargo Blocks
+        // Draw Cargo Blocks
         blocks3D.forEach(b => {
             let p0 = project(b.x, b.y, b.z);
             let px = project(b.x + b.l, b.y, b.z);
@@ -1348,10 +1446,10 @@
         // Center of Gravity Target (CoG)
         if (placedItems.length > 0) {
             let cogPt = project(cogX, offsetY + totalLoadW/2, drawH/2); 
-            ctx.beginPath(); ctx.arc(cogPt.x, cogPt.y, 8, 0, 2*Math.PI);
-            ctx.fillStyle = 'rgba(225, 29, 72, 0.8)'; ctx.fill();
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.stroke();
-            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 9px Inter'; ctx.fillText('⌖ CoG', cogPt.x, cogPt.y - 12);
+            ctx.beginPath(); ctx.arc(cogPt.x, cogPt.y, 7, 0, 2*Math.PI);
+            ctx.fillStyle = 'rgba(225, 29, 72, 0.85)'; ctx.fill();
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 8px Inter'; ctx.fillText('⌖ CoG', cogPt.x, cogPt.y - 10);
         }
 
         // Front Door & Lashing
@@ -1359,13 +1457,11 @@
             let lashX = totalLoadL + (optFrontCurve ? 100 : 0);
             let l0 = project(lashX, 0, 0); let lY = project(lashX, drawW, 0);
             let lZ = project(lashX, 0, drawH); let lYZ = project(lashX, drawW, drawH);
-            drawPolygon([l0, lY, lYZ, lZ], 'rgba(249, 115, 22, 0.5)', '#ea580c');
+            drawPolygon([l0, lY, lYZ, lZ], 'rgba(249, 115, 22, 0.45)', '#ea580c');
             let lCenter = project(lashX, drawW/2, drawH/2);
-            ctx.fillStyle = '#ea580c'; ctx.font = 'bold 12px Inter'; ctx.fillText('SPANSET', lCenter.x, lCenter.y);
+            ctx.fillStyle = '#ea580c'; ctx.font = 'bold 11px Inter'; ctx.fillText('SPANSET', lCenter.x, lCenter.y);
         }
     }
-
-    window.addEventListener('DOMContentLoaded', () => { init(); });
 </script>
 
 </body>
