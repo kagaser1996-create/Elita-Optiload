@@ -152,8 +152,8 @@
 
 <!-- TOP NAVIGATION BAR -->
 <nav class="bg-slate-900 text-white shadow-md rounded-t-xl md:rounded-xl mx-auto max-w-[1400px] w-full z-10 relative no-print mb-4">
-    <div class="px-4 md:px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
-        <div class="flex items-center gap-3 w-full md:w-auto">
+    <div class="px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
+        <div class="flex items-center gap-3">
             <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center font-black text-xl tracking-tighter">E</div>
             <div>
                 <h1 class="text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">OptiLoad</span></h1>
@@ -162,36 +162,33 @@
         </div>
 
         <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-            <div id="loggedOutView" class="flex gap-2">
-                <button onclick="openModal('authModal')" class="text-sm font-bold text-white hover:text-sky-300">Giriş Yap / Kaydol</button>
+            <div id="userProfileBadge" class="hidden items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs mr-2">
+                <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
+                <span id="userEmailLabel" class="text-slate-300 font-medium">user@example.com</span>
             </div>
 
-            <div id="loggedInView" class="hidden flex items-center gap-2 flex-wrap">
-                <div id="userProfileBadge" class="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs mr-2">
-                    <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
-                    <span id="userEmailLabel" class="text-slate-300 font-medium">user@mail.com</span>
-                </div>
+            <!-- Dashboard Button -->
+            <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
+                📥 Gelen Talepler
+            </button>
 
-                <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
-                    📥 Gelen Talepler
-                </button>
+            <!-- Sales Submission Button -->
+            <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                ↗ Lojistik Onayına Gönder
+            </button>
 
-                <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
-                    ↗ Lojistik Onayına Gönder
-                </button>
+            <!-- Logistics Approval Button -->
+            <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                ✓ Nihai Planı Onayla
+            </button>
 
-                <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
-                    ✓ Nihai Planı Onayla
-                </button>
+            <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-1.5">
+                Saha Formunu Yazdır
+            </button>
 
-                <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-1.5">
-                    Saha Formunu Yazdır
-                </button>
-
-                <button onclick="handleLogout()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 px-3 py-2 rounded-lg text-xs font-bold transition-all ml-2">
-                    Çıkış
-                </button>
-            </div>
+            <button onclick="handleLogout()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 px-3 py-2 rounded-lg text-xs font-bold transition-all ml-2">
+                Çıkış
+            </button>
         </div>
     </div>
 </nav>
@@ -243,11 +240,6 @@
                 <div class="input-group"><label>Dökme Katı (İstif)</label><input type="text" value="Zemine Yayılarak" readonly class="!bg-indigo-50 !text-indigo-700 font-bold border-indigo-200 text-[10px] text-center"></div>
             </div>
 
-            <div class="input-group mb-3 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg hidden" id="targetBoxesGroup">
-                <label class="!text-fuchsia-800 flex items-center justify-between"><span>Hedef Koli (İhtiyaç Kadar)</span></label>
-                <input type="number" id="targetBoxes" value="0" placeholder="0 = Tırı Tamamen Doldur" class="bg-white border-fuchsia-300" oninput="debouncedRunEngine()">
-            </div>
-
             <div class="section-header">Taşıma Tabanı</div>
             <div class="input-group mb-3">
                 <select id="baseType" onchange="handleBaseChange(); debouncedRunEngine();">
@@ -287,6 +279,10 @@
             <div id="panel-single" class="block">
                 <div class="section-header">Tekil Ürün Modu</div>
                 <div class="input-group mb-3"><select id="skuSelect" onchange="populateSKU(); debouncedRunEngine();"></select></div>
+                <div class="input-group mb-3 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg">
+                    <label class="!text-fuchsia-800 flex items-center justify-between"><span>Hedef Koli (İhtiyaç Kadar)</span></label>
+                    <input type="number" id="targetBoxes" value="0" placeholder="0 = Tırı Tamamen Doldur" class="bg-white border-fuchsia-300" oninput="debouncedRunEngine()">
+                </div>
                 <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <div class="input-group"><label>Uzun (L)</label><input type="number" id="boxL" readonly class="bg-slate-100"></div>
                     <div class="input-group"><label>Geniş (W)</label><input type="number" id="boxW" readonly class="bg-slate-100"></div>
@@ -333,7 +329,7 @@
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col flex-grow min-h-[450px] print-break-inside-avoid relative print-page-2">
             <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 rounded-t-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 z-10 relative">
                 <span class="text-sm font-bold text-slate-700">3D İZOMETRİK YÜKLEME SİMÜLASYONU</span>
-                <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200" id="modeConfigLabel">Gerçek Zamanlı Çizim</span>
+                <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200" id="modeConfigLabel">İnteraktif Çizim</span>
             </div>
             
             <div id="mixedResultsTable" class="hidden p-4 border-b border-slate-200 bg-slate-50 z-10 relative">
@@ -347,8 +343,21 @@
                 </div>
             </div>
 
-            <!-- 3D KANVAS -->
-            <div class="flex-grow flex items-center justify-center p-4 bg-slate-800 relative rounded-b-xl overflow-hidden min-h-[380px]">
+            <!-- 3D INTERACTIVE CANVAS -->
+            <div class="flex-grow flex items-center justify-center p-4 bg-slate-800 relative rounded-b-xl overflow-hidden min-h-[450px]">
+                
+                <div class="absolute top-4 right-4 z-20 flex gap-2 no-print">
+                    <button onclick="resetView()" class="bg-white text-slate-800 px-3 py-1.5 rounded shadow-lg border border-slate-300 hover:bg-slate-100 font-bold text-xs flex items-center gap-1 transition">
+                        <span class="text-lg leading-none">⟲</span> Merkeze Al
+                    </button>
+                </div>
+                
+                <div class="absolute bottom-4 left-4 z-20 pointer-events-none no-print">
+                    <span class="bg-slate-900/70 text-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-semibold backdrop-blur-sm">
+                        🖱️ Sürükleyerek kaydırın, fare tekerleğiyle yakınlaştırın
+                    </span>
+                </div>
+
                 <canvas id="contCanvas" width="900" height="500" class="max-w-full w-full object-contain"></canvas>
             </div>
         </div>
@@ -369,6 +378,11 @@
     let lastComputedResult = null;
     let currentSimulationId = null;
 
+    // Pan & Zoom Global State
+    let panX = 0, panY = 0, zoomLevel = 1;
+    let isDraggingCanvas = false, dragStartCanvasX = 0, dragStartCanvasY = 0;
+    let lastRenderData = null;
+
     window.addEventListener('DOMContentLoaded', () => {
         if (window.supabase) {
             supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -380,21 +394,8 @@
             });
         }
         init();
+        initCanvasInteractions();
     });
-
-    function handleAuthChange(user) {
-        currentUser = user;
-        if (user) {
-            document.getElementById('authModal').classList.add('hidden');
-            document.getElementById('loggedOutView').classList.add('hidden');
-            document.getElementById('loggedInView').classList.remove('hidden');
-            loadUserProfile(user.id);
-        } else {
-            document.getElementById('authModal').classList.remove('hidden');
-            document.getElementById('loggedOutView').classList.remove('hidden');
-            document.getElementById('loggedInView').classList.add('hidden');
-        }
-    }
 
     // ==========================================
     // DATABASE & GLOBAL VARIABLES
@@ -439,7 +440,6 @@
     ];
 
     let currentMode = 'single';
-    // 3D Isometric Colors (Base, Top, Right, Left faces)
     const colorMap = [
         { base: '#0284c7', top: '#38bdf8', right: '#0369a1', left: '#075985' }, 
         { base: '#16a34a', top: '#4ade80', right: '#15803d', left: '#166534' }, 
@@ -649,7 +649,7 @@
         document.getElementById('optLashing').checked = inputs.optLashing || false;
 
         if (inputs.mode === 'single') {
-            document.getElementById('skuSelect').value = inputs.skuSelect;
+            document.getElementById('skuSelect').value = inputs.singleSkuIdx || 0;
             populateSKU();
         } else {
             document.getElementById('mixedList').innerHTML = ''; 
@@ -854,6 +854,57 @@
     }
 
     // ==========================================
+    // PAN & ZOOM CANVAS INTERACTIONS
+    // ==========================================
+    function initCanvasInteractions() {
+        const canvas = document.getElementById('contCanvas');
+        if(!canvas) return;
+        
+        canvas.style.cursor = 'grab';
+        
+        canvas.addEventListener('mousedown', (e) => {
+            isDraggingCanvas = true;
+            dragStartCanvasX = e.clientX - panX;
+            dragStartCanvasY = e.clientY - panY;
+            canvas.style.cursor = 'grabbing';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDraggingCanvas) return;
+            panX = e.clientX - dragStartCanvasX;
+            panY = e.clientY - dragStartCanvasY;
+            if(lastRenderData) performRender(lastRenderData);
+        });
+
+        window.addEventListener('mouseup', () => { 
+            isDraggingCanvas = false; 
+            if(canvas) canvas.style.cursor = 'grab'; 
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left - (canvas.width / 2);
+            const mouseY = e.clientY - rect.top - (canvas.height / 2);
+
+            const zoomFactor = 1.1;
+            let newZoom = e.deltaY < 0 ? zoomLevel * zoomFactor : zoomLevel / zoomFactor;
+            newZoom = Math.max(0.3, Math.min(newZoom, 10)); // Restrict zoom range
+
+            panX = mouseX - (mouseX - panX) * (newZoom / zoomLevel);
+            panY = mouseY - (mouseY - panY) * (newZoom / zoomLevel);
+            
+            zoomLevel = newZoom;
+            if(lastRenderData) performRender(lastRenderData);
+        });
+    }
+
+    function resetView() {
+        panX = 0; panY = 0; zoomLevel = 1;
+        if(lastRenderData) performRender(lastRenderData);
+    }
+
+    // ==========================================
     // CORE 3D ALGORITHM & PACKING
     // ==========================================
     function runEngine() {
@@ -997,7 +1048,7 @@
                             let blockL = actualBoxL;
                             
                             itemsToPack.push({
-                                id: sku.name, priority: idx, target: targetBoxes, count: 1, l: blockL, w: blockW, h: rowLayers * sku.H, 
+                                id: sku.name, priority: idx, count: 1, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * sku.H, 
                                 boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
                                 palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
                                 layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, boxOrientation: isRotated
@@ -1018,6 +1069,7 @@
         }
 
         let result = unifiedPacker(itemsToPack, effContL, effContW, maxWgt, baseType);
+        lastComputedResult = result;
         updateUnifiedUI(result, contL, contW, contH, maxWgt, baseType, optFrontCurve, titleText);
     }
 
@@ -1076,8 +1128,8 @@
                         item.wgt = (allowBoxes * item.boxWt) + baseTare; 
                         item.isPartial = true; 
                         item.rejectReason = "Araç toplam tonaj limiti (" + maxWgt + " kg) sınırına ulaşıldı.";
-                    } else { continue; } 
-                } else { continue; } 
+                    } else { item.rejectReason = "Ağırlık limiti doldu."; continue; } 
+                } else { item.rejectReason = "Ağırlık limiti doldu."; continue; } 
             }
 
             let bestNode = { rectIdx: -1, isRotated: false, score1: Infinity, score2: Infinity, x: -1, y: -1 };
@@ -1159,7 +1211,7 @@
             let bOffsetX = ((patL * scale) - (loadL * scale)) / 2;
             let bOffsetY = ((patW * scale) - (loadW * scale)) / 2;
             ctx.translate(bOffsetX, bOffsetY);
-            for(let r=0; r<1; r++){ 
+            for(let r=0; r<1; r++){ // Just show one row depth for floor preview
                 for(let c=0; c<item.layoutCols; c++){
                     ctx.fillStyle = item.colorSet.top;
                     ctx.fillRect(r * item.palletBlocks[0].l * scale, c * item.palletBlocks[0].w * scale, item.palletBlocks[0].l * scale - 1, item.palletBlocks[0].w * scale - 1);
@@ -1330,17 +1382,27 @@
             </div>
         `;
 
-        sortedGroups.forEach((tg, idx) => {
-            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let safeSkuId = "pallet_canvas_" + idx;
-            let sampleItem = result.placedItems.find(p => p.id === sku);
-            if(sampleItem) drawPalletPreview(safeSkuId, sampleItem, baseType);
-        });
+        // Wait to make sure DOM is painted before rendering tiny canvases
+        setTimeout(() => {
+            sortedGroups.forEach((tg, idx) => {
+                let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
+                let safeSkuId = "pallet_canvas_" + idx;
+                let sampleItem = result.placedItems.find(p => p.id === sku);
+                if(sampleItem) drawPalletPreview(safeSkuId, sampleItem, baseType);
+            });
+        }, 50);
 
-        drawIsometricMixedCanvas(result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX);
+        // Reset view and draw 3D
+        panX = 0; panY = 0; zoomLevel = 1;
+        lastRenderData = { placedItems: result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX };
+        performRender(lastRenderData);
     }
 
-    function drawIsometricMixedCanvas(placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX) {
+    // ==========================================
+    // 🚀 3D INTERACTIVE RENDERING ENGINE
+    // ==========================================
+    function performRender(data) {
+        const { placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX } = data;
         const canvas = document.getElementById('contCanvas'); 
         if(!canvas) return;
         
@@ -1367,7 +1429,7 @@
         let blocks3D = [];
         placedItems.forEach(item => {
             let py = offsetY + (item.y - minY);
-            let lbl = `${item.boxes} Koli`;
+            let lbl = item.isPartial ? `${item.boxes} Koli` : `${item.displayLayers || Math.ceil(item.boxes / (item.palletBlocks[0].cols * item.palletBlocks[0].rows))} Kat`;
             blocks3D.push({ x: item.x, y: py, z: 0, l: item.l, w: item.w, h: item.h, cTop: item.colorSet.top, cRight: item.colorSet.right, cLeft: item.colorSet.left, label: lbl, isPartial: item.isPartial });
         });
 
@@ -1385,7 +1447,8 @@
         let vCenter = (vMin + vMax) / 2;
         
         let pad = 60;
-        let scale = Math.min((canvas.width - pad*2) / spanU, (canvas.height - pad*2) / spanV);
+        let baseScale = Math.min((canvas.width - pad*2) / spanU, (canvas.height - pad*2) / spanV);
+        let activeScale = baseScale * zoomLevel;
 
         let cx = canvas.width / 2;
         let cy = canvas.height / 2;
@@ -1393,7 +1456,10 @@
         function project(px, py, pz) {
             let u = (px - py) * cosA;
             let v = (px + py) * sinA - pz;
-            return { x: cx + (u - uCenter) * scale, y: cy + (v - vCenter) * scale };
+            return {
+                x: cx + panX + (u - uCenter) * activeScale,
+                y: cy + panY + (v - vCenter) * activeScale
+            };
         }
 
         function drawPolygon(pts, color, strokeColor = 'rgba(0,0,0,0.15)') {
@@ -1402,6 +1468,7 @@
             ctx.closePath(); ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = strokeColor; ctx.stroke();
         }
 
+        // Draw Container Base & Walls
         let w0 = project(0, 0, 0); 
         let wX = project(drawL, 0, 0); 
         let wY = project(0, drawW, 0);
@@ -1409,17 +1476,19 @@
         let wXZ = project(drawL, 0, drawH); 
         let wYZ = project(0, drawW, drawH);
         
-        drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155'); 
-        drawPolygon([w0, wX, wXZ, wZ], '#1e293b'); 
-        drawPolygon([w0, wY, wYZ, wZ], '#0f172a'); 
+        drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155'); // Floor
+        drawPolygon([w0, wX, wXZ, wZ], '#1e293b'); // Back Left Wall
+        drawPolygon([w0, wY, wYZ, wZ], '#0f172a'); // Back Right Wall
         
         if (optFrontCurve) {
             let b0 = project(0,0,0); let bX = project(100,0,0); let bY = project(0,drawW,0); let bXY = project(100,drawW,0);
             drawPolygon([b0, bX, bXY, bY], 'rgba(234, 179, 8, 0.4)');
         }
 
+        // Depth Sorting
         blocks3D.sort((a,b) => (a.x + a.y + a.z) - (b.x + b.y + b.z));
 
+        // Draw Cargo Blocks
         blocks3D.forEach(b => {
             let p0 = project(b.x, b.y, b.z);
             let px = project(b.x + b.l, b.y, b.z);
@@ -1430,31 +1499,42 @@
             let pyz = project(b.x, b.y + b.w, b.z + b.h);
             let pxyz = project(b.x + b.l, b.y + b.w, b.z + b.h);
 
-            drawPolygon([px, pxy, pxyz, pxz], b.cRight); 
-            drawPolygon([py, pxy, pxyz, pyz], b.cLeft);  
-            drawPolygon([p0z, pxz, pxyz, pyz], b.cTop);  
+            drawPolygon([px, pxy, pxyz, pxz], b.cRight); // Right Face
+            drawPolygon([py, pxy, pxyz, pyz], b.cLeft);  // Left Face
+            drawPolygon([p0z, pxz, pxyz, pyz], b.cTop);  // Top Face
 
             let centerTop = project(b.x + b.l/2, b.y + b.w/2, b.z + b.h);
             ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
-            ctx.font = '900 10px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            let fontSize = Math.max(8, 10 * zoomLevel); // Scale text slightly
+            ctx.font = `900 ${fontSize}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            
+            // Draw background pill for text
+            let textWidth = ctx.measureText(b.label).width;
+            ctx.fillStyle = b.isPartial ? 'rgba(255, 255, 255, 0.9)' : 'rgba(15, 23, 42, 0.6)';
+            ctx.fillRect(centerTop.x - (textWidth/2) - 4, centerTop.y - (fontSize/2) - 4, textWidth + 8, fontSize + 8);
+            
+            ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
             ctx.fillText(b.label, centerTop.x, centerTop.y);
         });
 
+        // Center of Gravity Target (CoG)
         if (placedItems.length > 0) {
             let cogPt = project(cogX, offsetY + totalLoadW/2, drawH/2); 
-            ctx.beginPath(); ctx.arc(cogPt.x, cogPt.y, 7, 0, 2*Math.PI);
+            let rad = 7 * zoomLevel;
+            ctx.beginPath(); ctx.arc(cogPt.x, cogPt.y, rad, 0, 2*Math.PI);
             ctx.fillStyle = 'rgba(225, 29, 72, 0.85)'; ctx.fill();
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
-            ctx.fillStyle = '#ffffff'; ctx.font = 'bold 8px Inter'; ctx.fillText('⌖ CoG', cogPt.x, cogPt.y - 10);
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5 * zoomLevel; ctx.stroke();
+            ctx.fillStyle = '#ffffff'; ctx.font = `bold ${Math.max(8, 9*zoomLevel)}px Inter`; ctx.fillText('⌖ CoG', cogPt.x, cogPt.y - (10*zoomLevel));
         }
 
+        // Front Door & Lashing
         if (useLashing && placedItems.length > 0 && drawL - totalLoadL > 200) {
             let lashX = totalLoadL + (optFrontCurve ? 100 : 0);
             let l0 = project(lashX, 0, 0); let lY = project(lashX, drawW, 0);
             let lZ = project(lashX, 0, drawH); let lYZ = project(lashX, drawW, drawH);
             drawPolygon([l0, lY, lYZ, lZ], 'rgba(249, 115, 22, 0.45)', '#ea580c');
             let lCenter = project(lashX, drawW/2, drawH/2);
-            ctx.fillStyle = '#ea580c'; ctx.font = 'bold 11px Inter'; ctx.fillText('SPANSET', lCenter.x, lCenter.y);
+            ctx.fillStyle = '#ea580c'; ctx.font = `bold ${Math.max(8, 11*zoomLevel)}px Inter`; ctx.fillText('SPANSET', lCenter.x, lCenter.y);
         }
     }
 </script>
