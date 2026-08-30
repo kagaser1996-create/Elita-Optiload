@@ -36,6 +36,34 @@
             .print-page-2 { page-break-before: always !important; break-before: page !important; margin-top: 0 !important; }
         }
     </style>
+    
+    <script>
+        // ==========================================
+        // SUPABASE CONNECTION
+        // ==========================================
+        const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
+        
+        let supabaseClient = null;
+        let currentUser = null;
+        let currentUserProfile = null;
+        let authMode = 'login';
+        let lastComputedResult = null;
+        let currentSimulationId = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.supabase) {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                supabaseClient.auth.getSession().then(({ data: { session } }) => { 
+                    if (session) handleAuthChange(session.user); 
+                });
+                supabaseClient.auth.onAuthStateChange((_event, session) => { 
+                    handleAuthChange(session?.user || null); 
+                });
+            }
+            init();
+        });
+    </script>
 </head>
 <body class="p-0 md:p-4 h-screen flex flex-col">
 
@@ -51,66 +79,151 @@
     </div>
 </div>
 
-<!-- MODALS FOR AUTH & SAVING -->
-<div id="authModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center px-4">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-black text-slate-800" id="authModalTitle">Kullanıcı Girişi</h3>
-            <button onclick="closeModal('authModal')" class="text-slate-400 hover:text-rose-500 font-bold">X</button>
+<!-- AUTHENTICATION MODAL -->
+<div id="authModal" class="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border-t-8 border-sky-500">
+        <div class="flex items-center gap-3 mb-2 justify-center">
+            <div class="w-10 h-10 bg-sky-500 rounded flex items-center justify-center font-black text-white text-2xl">E</div>
+            <h2 class="text-3xl font-black text-slate-800 tracking-tight">Elita <span class="font-light text-sky-500">OptiLoad</span></h2>
         </div>
-        <div class="input-group mb-3"><label>Email</label><input type="text" id="authEmail" placeholder="ornek@sirket.com"></div>
-        <div class="input-group mb-4"><label>Şifre</label><input type="password" id="authPassword" placeholder="••••••••"></div>
-        <button id="loginBtn" onclick="handleLogin()" class="w-full bg-slate-900 text-white font-bold py-2 rounded-lg mb-2 hover:bg-slate-800 transition">Giriş Yap</button>
-        <button id="registerBtn" onclick="handleRegister()" class="w-full bg-indigo-100 text-indigo-700 font-bold py-2 rounded-lg hover:bg-indigo-200 transition">Yeni Hesap Oluştur</button>
+        <p class="text-center text-slate-500 font-bold mb-6 uppercase text-[11px] tracking-widest">Saha & Lojistik Giriş Paneli</p>
+        
+        <div class="flex border-b border-slate-200 mb-6">
+            <button id="authTabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2 font-bold text-sm border-b-2 border-sky-500 text-sky-600">Giriş Yap</button>
+            <button id="authTabRegister" onclick="switchAuthTab('register')" class="flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent">Kayıt Ol</button>
+        </div>
+
+        <div id="registerFields" class="hidden space-y-3 mb-3">
+            <div>
+                <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Ad Soyad</label>
+                <input type="text" id="regFullName" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Departman Yetkisi</label>
+                <select id="regRole" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none font-semibold">
+                    <option value="sales">Satış Ekibi (Planlar & Onaya Gönderir)</option>
+                    <option value="logistics">Lojistik & Ar-Ge (İnceler & Nihai Onay Verir)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <div>
+                <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">E-Posta</label>
+                <input type="email" id="authEmail" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none">
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Şifre</label>
+                <input type="password" id="authPassword" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none">
+            </div>
+        </div>
+
+        <button id="authSubmitBtn" onclick="handleAuthSubmit()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-xl transition-all shadow-md mt-6 text-sm">Giriş Yap</button>
         <p id="authErrorMsg" class="text-rose-500 text-xs font-bold text-center mt-3 hidden"></p>
     </div>
 </div>
 
-<div id="savePlanModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center px-4">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-black text-slate-800">Planı Kaydet</h3>
-            <button onclick="closeModal('savePlanModal')" class="text-slate-400 hover:text-rose-500 font-bold">X</button>
+<!-- INBOX / DASHBOARD MODAL -->
+<div id="adminDashboardModal" class="hidden fixed inset-0 bg-slate-900/80 z-40 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-[1000px] w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
+        <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">📥</span>
+                <h3 class="font-bold text-base">Gelen Talepler & Onay Geçmişi</h3>
+            </div>
+            <button onclick="closeDashboard()" class="text-slate-400 hover:text-white font-black text-lg">&times;</button>
         </div>
-        <div class="input-group mb-4"><label>Plan Adı</label><input type="text" id="planNameInput" placeholder="Örn: 5x4 Kare Tam Dolu"></div>
-        <button onclick="saveCurrentPlan()" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-500">Buluta Kaydet</button>
+        <div class="p-6 overflow-y-auto flex-grow custom-scrollbar">
+            <div id="dashboardLoading" class="text-center text-slate-400 py-8 font-semibold">Kayıtlar yükleniyor, lütfen bekleyin...</div>
+            <table id="dashboardTable" class="w-full text-left text-xs bg-white rounded border border-slate-200 hidden">
+                <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b">
+                    <tr>
+                        <th class="p-3">Tarih</th>
+                        <th class="p-3">Durum</th>
+                        <th class="p-3">Satış Temsilcisi</th>
+                        <th class="p-3">Lojistik Onayı</th>
+                        <th class="p-3">Araç & Yük</th>
+                        <th class="p-3 text-center">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="dashboardTableBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-<div id="loadPlanModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center px-4">
-    <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] flex flex-col">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-black text-slate-800">Kayıtlı Planlarım</h3>
-            <button onclick="closeModal('loadPlanModal')" class="text-slate-400 hover:text-rose-500 font-bold">X</button>
+<!-- ALARM MODAL -->
+<div id="alarmModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center no-print px-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full border-t-8 border-rose-500 transform transition-all">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center text-rose-600 font-bold text-xl">!</div>
+            <h3 class="text-xl font-black text-slate-800">Limit Uyarısı</h3>
         </div>
-        <div id="savedPlansList" class="overflow-y-auto space-y-2 flex-grow custom-scrollbar"></div>
+        <p id="alarmMessage" class="text-sm font-medium text-slate-600 mb-6 leading-relaxed"></p>
+        <button onclick="document.getElementById('alarmModal').classList.add('hidden')" class="w-full bg-rose-600 hover:bg-rose-700 transition-colors text-white font-bold py-3 px-4 rounded-xl shadow-md">Sistemin Düzeltmesini Onayla</button>
     </div>
 </div>
 
+<!-- TOP NAVIGATION BAR -->
 <nav class="bg-slate-900 text-white shadow-md rounded-t-xl md:rounded-xl mx-auto max-w-[1400px] w-full z-10 relative no-print mb-4">
-    <div class="px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
-        <div class="flex items-center gap-3">
+    <div class="px-4 md:px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
+        <div class="flex items-center gap-3 w-full md:w-auto">
             <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center font-black text-xl tracking-tighter">E</div>
             <div>
                 <h1 class="text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">3D OptiLoad</span></h1>
                 <p class="text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Gelişmiş Fizik & 3D Yükleme Simülatörü</p>
             </div>
         </div>
-        
-        <div class="flex items-center gap-3 w-full md:w-auto">
-            <div id="loggedOutView" class="flex gap-2">
-                <button onclick="openModal('authModal')" class="text-sm font-bold text-white hover:text-sky-300">Giriş Yap / Kaydol</button>
+
+        <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+            <div id="userProfileBadge" class="hidden items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs mr-2">
+                <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
+                <span id="userEmailLabel" class="text-slate-300 font-medium">user@example.com</span>
             </div>
-            <div id="loggedInView" class="hidden flex items-center gap-3">
-                <span class="text-xs font-semibold text-slate-300" id="userEmailDisplay">user@mail.com</span>
-                <button onclick="openModal('loadPlanModal'); fetchSavedPlans();" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-xs font-bold transition">Planlarım</button>
-                <button onclick="openModal('savePlanModal')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold transition shadow-md">Kaydet</button>
-                <button onclick="handleLogout()" class="text-xs text-rose-400 hover:text-rose-300 font-bold ml-2">Çıkış</button>
-            </div>
-            <button onclick="window.print()" class="w-full md:w-auto bg-sky-600 hover:bg-sky-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-lg transition-all ml-2">Saha Formunu Yazdır</button>
+
+            <!-- Dashboard Button -->
+            <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
+                📥 Gelen Talepler
+            </button>
+
+            <!-- Sales Submission Button -->
+            <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                ↗ Lojistik Onayına Gönder
+            </button>
+
+            <!-- Logistics Approval Button -->
+            <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                ✓ Nihai Planı Onayla
+            </button>
+
+            <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-1.5">
+                Saha Formunu Yazdır
+            </button>
+
+            <button onclick="handleLogout()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 px-3 py-2 rounded-lg text-xs font-bold transition-all">
+                Çıkış
+            </button>
         </div>
     </div>
 </nav>
+
+<div class="hidden print-only mb-6 border-b-2 border-slate-900 pb-4">
+    <div class="flex justify-between items-end mb-4">
+        <div>
+            <h1 class="text-2xl font-black tracking-tight">Elita OptiLoad</h1>
+            <p class="text-sm text-slate-500 font-bold">SAHA YÜKLEME & GÜVENLİK FORMU</p>
+        </div>
+        <div class="text-right text-sm text-slate-700">
+            <strong>Tarih:</strong> <script>document.write(new Date().toLocaleDateString('tr-TR'));</script>
+        </div>
+    </div>
+    <div class="grid grid-cols-2 gap-y-3 gap-x-4 text-xs mt-2 bg-slate-50 p-4 border border-slate-200 rounded">
+        <div><strong>Şoför Adı Soyadı:</strong> <span class="inline-block w-48 border-b border-slate-400"></span></div>
+        <div><strong>Araç Plakası:</strong> <span class="inline-block w-48 border-b border-slate-400"></span></div>
+        <div><strong>Konteyner / Dorse No:</strong> <span class="inline-block w-48 border-b border-slate-400"></span></div>
+        <div><strong>Mod:</strong> <span id="printSkuName" class="font-black text-indigo-700 inline-block w-48 border-b border-slate-400 border-dashed">Seçim Yapılmadı</span></div>
+    </div>
+</div>
 
 <div class="flex-grow flex flex-col lg:flex-row max-w-[1400px] mx-auto w-full gap-4 overflow-hidden print-full-width">
     
@@ -254,19 +367,6 @@
 
 <script>
     // ==========================================
-    // SUPABASE CLIENT INITIALIZATION
-    // ==========================================
-    const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
-    
-    let supabaseClient = null;
-    let currentUser = null;
-
-    if (window.supabase) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    }
-
-    // ==========================================
     // DATABASE & GLOBAL VARIABLES
     // ==========================================
     const skuDatabase = [
@@ -309,6 +409,7 @@
     ];
 
     let currentMode = 'single';
+    // 3D Isometric Colors (Base, Top, Right, Left faces)
     const colorMap = [
         { base: '#0284c7', top: '#38bdf8', right: '#0369a1', left: '#075985' }, 
         { base: '#16a34a', top: '#4ade80', right: '#15803d', left: '#166534' }, 
@@ -334,21 +435,14 @@
         debouncedRunEngine(); 
     }
 
-    if (supabaseClient) {
-        supabaseClient.auth.getSession().then(({ data: { session } }) => { if (session) handleAuthChange(session.user); });
-        supabaseClient.auth.onAuthStateChange((_event, session) => { handleAuthChange(session?.user || null); });
-    }
-
+    // --- SUPABASE AUTH EVENTS ---
     function handleAuthChange(user) {
         currentUser = user;
         if (user) {
-            document.getElementById('loggedOutView').classList.add('hidden');
-            document.getElementById('loggedInView').classList.remove('hidden');
-            document.getElementById('userEmailDisplay').innerText = user.email;
-            closeModal('authModal');
+            document.getElementById('authModal').classList.add('hidden');
+            loadUserProfile(user.id);
         } else {
-            document.getElementById('loggedOutView').classList.remove('hidden');
-            document.getElementById('loggedInView').classList.add('hidden');
+            document.getElementById('authModal').classList.remove('hidden');
         }
     }
 
@@ -372,9 +466,16 @@
         
         const btn = document.getElementById('registerBtn');
         try {
-            btn.innerText = "Kaydediliyor..."; 
-            btn.disabled = true;
-            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            btn.innerText = "Kaydediliyor..."; btn.disabled = true;
+            
+            const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
+            let role = document.getElementById('regRole').value;
+            if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') { role = 'admin'; }
+
+            const { data, error } = await supabaseClient.auth.signUp({ 
+                email, password, options: { data: { full_name: fullName, role: role } } 
+            });
+            
             if (error) throw error;
             
             errLabel.innerText = "Kayıt başarılı! Lütfen giriş yapın.";
@@ -385,8 +486,7 @@
             errLabel.classList.add('text-rose-500');
             errLabel.innerText = "Kayıt hatası: " + e.message;
         } finally {
-            btn.innerText = "Yeni Hesap Oluştur"; 
-            btn.disabled = false;
+            btn.innerText = "Yeni Hesap Oluştur"; btn.disabled = false;
         }
     }
 
@@ -410,8 +510,7 @@
         
         const btn = document.getElementById('loginBtn');
         try {
-            btn.innerText = "Bağlanıyor..."; 
-            btn.disabled = true;
+            btn.innerText = "Bağlanıyor..."; btn.disabled = true;
             const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
             if (error) throw error;
         } catch (e) {
@@ -419,70 +518,208 @@
             errLabel.classList.add('text-rose-500');
             errLabel.innerText = "Giriş hatası: " + e.message;
         } finally {
-            btn.innerText = "Giriş Yap"; 
-            btn.disabled = false;
+            btn.innerText = "Giriş Yap"; btn.disabled = false;
         }
     }
 
-    async function handleLogout() { if(supabaseClient) await supabaseClient.auth.signOut(); }
-
-    function getUIDataPayload() {
-        let mixedData = [];
-        document.querySelectorAll('.mixed-row').forEach(row => {
-            mixedData.push({ skuIdx: row.querySelector('.mixed-sku').value, val: row.querySelector('.mixed-val').value });
-        });
-
-        return {
-            mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
-            maxWgt: document.getElementById('maxWgt').value, targetBoxes: document.getElementById('targetBoxes').value,
-            baseType: document.getElementById('baseType').value, specificBaseSize: document.getElementById('specificBaseSize').value,
-            optFrontCurve: document.getElementById('optFrontCurve').checked, optDoor: document.getElementById('optDoor').checked,
-            singleSkuIdx: document.getElementById('skuSelect').value, mixedData: mixedData
-        };
+    async function loadUserProfile(userId) {
+        if(!supabaseClient) return;
+        const { data } = await supabaseClient.from('profiles').select('*').eq('id', userId).single();
+        currentUserProfile = data || { role: 'sales', email: currentUser.email };
+        applyRolePermissions();
     }
 
-    async function saveCurrentPlan() {
-        if (!currentUser) return alert("Lütfen önce giriş yapın.");
-        const planName = document.getElementById('planNameInput').value || "İsimsiz Plan";
-        const { data, error } = await supabaseClient.from('saved_plans').insert([{ user_id: currentUser.id, plan_name: planName, plan_data: getUIDataPayload() }]);
-        if (error) alert("Plan kaydedilemedi: " + error.message);
-        else { alert("Plan başarıyla kaydedildi!"); closeModal('savePlanModal'); document.getElementById('planNameInput').value = ""; }
-    }
-
-    async function fetchSavedPlans() {
-        if (!currentUser) return;
-        const listDiv = document.getElementById('savedPlansList');
-        listDiv.innerHTML = "<p class='text-xs text-slate-500'>Yükleniyor...</p>";
-        const { data: plans, error } = await supabaseClient.from('saved_plans').select('*').order('created_at', { ascending: false });
-        if (error) { listDiv.innerHTML = "<p class='text-xs text-rose-500'>Hata oluştu.</p>"; return; }
-        if (plans.length === 0) { listDiv.innerHTML = "<p class='text-xs text-slate-500'>Kayıtlı planınız bulunmamaktadır.</p>"; return; }
-
-        listDiv.innerHTML = "";
-        plans.forEach(plan => {
-            const date = new Date(plan.created_at).toLocaleDateString('tr-TR');
-            const modeName = plan.plan_data.mode === 'single' ? '📦 Tekil' : '🔀 Karma';
-            listDiv.innerHTML += `
-                <div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-sky-50 transition cursor-pointer" onclick='loadPlanData(${JSON.stringify(plan.plan_data)})'>
-                    <div><div class="text-sm font-bold text-slate-800">${plan.plan_name}</div><div class="text-[10px] font-semibold text-slate-500">${modeName} • ${date} • Araç: ${plan.plan_data.vehicleType}</div></div>
-                    <button class="bg-sky-600 text-white px-3 py-1.5 rounded text-xs font-bold">Yükle</button>
-                </div>
-            `;
-        });
-    }
-
-    function loadPlanData(data) {
-        switchTab(data.mode);
-        document.getElementById('vehicleType').value = data.vehicleType; document.getElementById('maxWgt').value = data.maxWgt;
-        document.getElementById('targetBoxes').value = data.targetBoxes; document.getElementById('baseType').value = data.baseType;
-        document.getElementById('specificBaseSize').value = data.specificBaseSize; document.getElementById('optFrontCurve').checked = data.optFrontCurve;
-        document.getElementById('optDoor').checked = data.optDoor; document.getElementById('skuSelect').value = data.singleSkuIdx;
-
-        if (data.mode === 'mixed') {
-            document.getElementById('mixedList').innerHTML = "";
-            data.mixedData.forEach(item => { addMixedRowWithCount(parseInt(item.skuIdx), parseInt(item.val)); });
-        }
+    function applyRolePermissions() {
+        const role = currentUserProfile.role || 'sales';
+        const roleBadge = document.getElementById('userRoleBadge');
         
-        updateVehicleDims(); handleBaseChange(); debouncedRunEngine(); closeModal('loadPlanModal');
+        const btnSales = document.getElementById('btnSubmitSales');
+        const btnLogistics = document.getElementById('btnSubmitLogistics');
+        const dashBtn = document.getElementById('btnDashboard');
+        
+        document.getElementById('userProfileBadge').classList.remove('hidden');
+        document.getElementById('userProfileBadge').classList.add('flex');
+        document.getElementById('userEmailLabel').innerText = currentUserProfile.full_name || currentUser.email;
+
+        btnSales.classList.add('hidden');
+        btnLogistics.classList.add('hidden');
+        dashBtn.classList.add('hidden');
+
+        if (role === 'logistics') {
+            roleBadge.innerText = "LOJİSTİK & AR-GE";
+            roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-sky-600 text-white uppercase";
+            btnLogistics.classList.remove('hidden'); btnLogistics.classList.add('flex');
+            dashBtn.classList.remove('hidden'); dashBtn.classList.add('flex');
+        } else if (role === 'admin') {
+            roleBadge.innerText = "YÖNETİCİ";
+            roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-indigo-600 text-white uppercase";
+            dashBtn.classList.remove('hidden'); dashBtn.classList.add('flex');
+        } else {
+            roleBadge.innerText = "SATIŞ EKİBİ";
+            roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-amber-600 text-white uppercase";
+            btnSales.classList.remove('hidden'); btnSales.classList.add('flex');
+        }
+    }
+
+    async function handleLogout() { if(supabaseClient) await supabaseClient.auth.signOut(); location.reload(); }
+
+    function switchAuthTab(mode) {
+        authMode = mode;
+        const btnLogin = document.getElementById('authTabLogin');
+        const btnReg = document.getElementById('authTabRegister');
+        const regFields = document.getElementById('registerFields');
+        const submitBtn = document.getElementById('authSubmitBtn');
+        const err = document.getElementById('authErrorMsg');
+        err.classList.add('hidden');
+
+        if (mode === 'login') {
+            btnLogin.className = "flex-1 py-2 font-bold text-sm border-b-2 border-sky-500 text-sky-600";
+            btnReg.className = "flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent";
+            regFields.classList.add('hidden');
+            submitBtn.innerText = "Giriş Yap";
+            submitBtn.onclick = handleLogin;
+        } else {
+            btnReg.className = "flex-1 py-2 font-bold text-sm border-b-2 border-sky-500 text-sky-600";
+            btnLogin.className = "flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent";
+            regFields.classList.remove('hidden');
+            submitBtn.innerText = "Yeni Hesap Oluştur";
+            submitBtn.onclick = handleRegister;
+        }
+    }
+
+    async function saveSimulation(status) {
+        if (!lastComputedResult) return showAlert("Lütfen önce simülasyonu çalıştırın.");
+
+        const btnSales = document.getElementById('btnSubmitSales');
+        const btnLogistics = document.getElementById('btnSubmitLogistics');
+        
+        if (status === 'bekliyor') { btnSales.innerText = "Gönderiliyor..."; btnSales.disabled = true; } 
+        else { btnLogistics.innerText = "Kaydediliyor..."; btnLogistics.disabled = true; }
+
+        let input_data = {
+            mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
+            baseType: document.getElementById('baseType').value, optFrontCurve: document.getElementById('optFrontCurve').checked,
+            optDoor: document.getElementById('optDoor').checked, optAirbag: document.getElementById('optAirbag').checked, optLashing: document.getElementById('optLashing').checked
+        };
+        
+        if (currentMode === 'single') {
+            input_data.skuSelect = document.getElementById('skuSelect').value;
+            input_data.targetBoxes = document.getElementById('targetBoxes').value;
+        } else {
+            let rows = Array.from(document.querySelectorAll('.mixed-row'));
+            input_data.mixedRows = rows.map(r => ({ sku: r.querySelector('.mixed-sku').value, count: r.querySelector('.mixed-val').value }));
+        }
+
+        const payload = {
+            status: status, mode: currentMode, vehicle_type: document.getElementById('vehicleType').value, base_type: document.getElementById('baseType').value,
+            total_boxes: lastComputedResult.totalBoxes, total_weight: lastComputedResult.totalWgt, total_loads: `${lastComputedResult.placedItems.length} İstif`,
+            layout_data: { inputs: input_data, results: lastComputedResult.placedItems }
+        };
+
+        if (currentUserProfile.role === 'sales') {
+            payload.sales_email = currentUser.email; payload.sales_name = currentUserProfile.full_name || 'Satış Temsilcisi';
+        } else {
+            payload.logistics_email = currentUser.email; payload.logistics_name = currentUserProfile.full_name || 'Lojistik Yetkilisi';
+        }
+
+        let dbError = null;
+        if (currentSimulationId) { 
+            const { error } = await supabaseClient.from('simulations').update(payload).eq('id', currentSimulationId);
+            dbError = error;
+        } else { 
+            const { error } = await supabaseClient.from('simulations').insert([payload]);
+            dbError = error;
+        }
+
+        if (status === 'bekliyor') { btnSales.innerHTML = "↗ Lojistik Onayına Gönder"; btnSales.disabled = false; } 
+        else { btnLogistics.innerHTML = "✓ Nihai Planı Onayla"; btnLogistics.disabled = false; }
+
+        if (dbError) { alert("Kayıt hatası: " + dbError.message); } 
+        else { alert(status === 'bekliyor' ? "Talebiniz başarıyla Lojistik Onayına gönderildi!" : "✅ Yükleme planı başarıyla ONAYLANDI!"); currentSimulationId = null; }
+    }
+
+    async function loadSimulationIntoEditor(id) {
+        const { data, error } = await supabaseClient.from('simulations').select('*').eq('id', id).single();
+        if (error || !data) return alert("Talep yüklenemedi.");
+        
+        currentSimulationId = data.id; 
+        const inputs = data.layout_data.inputs;
+
+        switchTab(inputs.mode || 'mixed');
+        document.getElementById('vehicleType').value = inputs.vehicleType;
+        document.getElementById('baseType').value = inputs.baseType;
+        document.getElementById('optFrontCurve').checked = inputs.optFrontCurve;
+        document.getElementById('optDoor').checked = inputs.optDoor;
+        document.getElementById('optAirbag').checked = inputs.optAirbag || false;
+        document.getElementById('optLashing').checked = inputs.optLashing || false;
+
+        if (inputs.mode === 'single') {
+            document.getElementById('skuSelect').value = inputs.skuSelect;
+            document.getElementById('targetBoxes').value = inputs.targetBoxes;
+            populateSKU();
+        } else {
+            document.getElementById('mixedList').innerHTML = ''; 
+            inputs.mixedRows.forEach(row => { addMixedRowWithCount(parseInt(row.sku), parseInt(row.count)); });
+        }
+
+        updateVehicleDims(); handleBaseChange(); debouncedRunEngine(); closeDashboard();
+        
+        if (currentUserProfile.role === 'admin') {
+            showAlert(`Yönetici Modu: Onaylanan plan incelenmek üzere ekrana yüklendi.\n\nÜst menüden 'Saha Formunu Yazdır' butonuna basarak PDF olarak kaydedebilirsiniz.`);
+        } else {
+            showAlert(`Talep yükleme motoruna aktarıldı.\n\nİstediğiniz değişiklikleri yapıp 'Nihai Planı Onayla' butonuna basarak süreci tamamlayabilirsiniz.`);
+        }
+    }
+
+    async function openDashboard() {
+        document.getElementById('adminDashboardModal').classList.remove('hidden');
+        const loading = document.getElementById('dashboardLoading');
+        const table = document.getElementById('dashboardTable');
+        const tbody = document.getElementById('dashboardTableBody');
+        
+        loading.classList.remove('hidden'); table.classList.add('hidden'); tbody.innerHTML = '';
+
+        const { data, error } = await supabaseClient.from('simulations').select('*').order('created_at', { ascending: false }).limit(30);
+        
+        loading.classList.add('hidden'); table.classList.remove('hidden');
+
+        if (data && data.length > 0) {
+            data.forEach(row => {
+                const dateStr = new Date(row.created_at).toLocaleString('tr-TR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+                const salesRep = row.sales_name || row.sales_email || '-';
+                const logRep = row.logistics_name || row.logistics_email || '-';
+                const statusBadge = row.status === 'bekliyor' 
+                    ? '<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-black uppercase">Onay Bekliyor</span>' 
+                    : '<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase">Onaylandı</span>';
+
+                let actionBtn = '';
+                if (row.status === 'bekliyor' && currentUserProfile.role === 'logistics') {
+                    actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">İncele / Yükle</button>`;
+                } else if (row.status === 'onaylandi' && (currentUserProfile.role === 'admin' || currentUserProfile.role === 'logistics')) {
+                    actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">🖨️ Aç & Yazdır</button>`;
+                } else if (row.status === 'bekliyor' && currentUserProfile.role === 'admin') {
+                    actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">Görüntüle</button>`;
+                } else {
+                    actionBtn = `<span class="text-slate-400 text-[10px] font-bold uppercase">Kayıtlı</span>`;
+                }
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition border-b">
+                        <td class="p-3 text-slate-500 font-medium">${dateStr}</td>
+                        <td class="p-3">${statusBadge}</td>
+                        <td class="p-3 font-semibold text-slate-700">${salesRep}</td>
+                        <td class="p-3 font-semibold text-indigo-700">${logRep}</td>
+                        <td class="p-3 text-[11px]">
+                            <strong class="text-slate-800 block">${row.vehicle_type} (${row.base_type})</strong>
+                            <span class="text-slate-500">${row.total_boxes} Koli | ${row.total_weight} kg</span>
+                        </td>
+                        <td class="p-3 text-center">${actionBtn}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-semibold">Henüz sisteme düşen bir kayıt yok.</td></tr>`;
+        }
     }
 
     function populateSelects() {
@@ -499,6 +736,8 @@
 
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function closeDashboard() { document.getElementById('adminDashboardModal').classList.add('hidden'); }
+    function showAlert(msg) { document.getElementById('alarmMessage').innerText = msg; document.getElementById('alarmModal').classList.remove('hidden'); }
 
     function switchTab(mode) {
         currentMode = mode;
@@ -761,7 +1000,7 @@
                             let blockL = actualBoxL;
                             
                             itemsToPack.push({
-                                id: sku.name, priority: idx, count: 1, l: blockL, w: blockW, h: rowLayers * sku.H, 
+                                id: sku.name, priority: idx, count: 1, l: blockL, w: blockW, h: sku.H, 
                                 boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
                                 palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
                                 layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers
@@ -782,6 +1021,7 @@
         }
 
         let result = unifiedPacker(itemsToPack, effContL, effContW, maxWgt, baseType);
+        lastComputedResult = result;
         updateUnifiedUI(result, contL, contW, maxWgt, baseType, optFrontCurve, titleText);
     }
 
@@ -825,6 +1065,7 @@
         let queue = [];
         itemTypes.forEach((type) => { for(let i=0; i<Math.min(type.count, 5000); i++) queue.push({...type}); });
         
+        // Priority Top-to-Bottom
         queue.sort((a,b) => { if (a.priority !== b.priority) return a.priority - b.priority; return b.area - a.area; });
 
         for (let i = 0; i < queue.length; i++) {
@@ -886,9 +1127,7 @@
         for (let i = 0; i < newRects.length; i++) {
             let isEncl = false;
             for (let j = 0; j < newRects.length; j++) {
-                if (i !== j && newRects[i].x >= newRects[j].x && newRects[i].y >= newRects[j].y && newRects[i].x + newRects[i].l <= newRects[j].x + newRects[j].l && newRects[i].y + newRects[i].w <= newRects[j].y + newRects[j].w) {
-                    isEncl = true; break;
-                }
+                if (i !== j && newRects[i].x >= newRects[j].x && newRects[i].y >= newRects[j].y && newRects[i].x + newRects[i].l <= newRects[j].x + newRects[j].l && newRects[i].y + newRects[i].w <= newRects[j].y + newRects[j].w) { isEncl = true; break; }
             }
             if (!isEncl) freeRects.push(newRects[i]);
         }
@@ -923,7 +1162,7 @@
             let bOffsetX = ((patL * scale) - (loadL * scale)) / 2;
             let bOffsetY = ((patW * scale) - (loadW * scale)) / 2;
             ctx.translate(bOffsetX, bOffsetY);
-            for(let r=0; r<1; r++){
+            for(let r=0; r<1; r++){ // Just show one row depth for floor preview
                 for(let c=0; c<item.layoutCols; c++){
                     ctx.fillStyle = item.colorSet.top;
                     ctx.fillRect(r * item.palletBlocks[0].l * scale, c * item.palletBlocks[0].w * scale, item.palletBlocks[0].l * scale - 1, item.palletBlocks[0].w * scale - 1);
@@ -1084,12 +1323,15 @@
         drawIsometricMixedCanvas(result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX);
     }
 
+    // ==========================================
+    // 🚀 3D ISOMETRIC RENDERING ENGINE
+    // ==========================================
     function drawIsometricMixedCanvas(placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX) {
         const canvas = document.getElementById('contCanvas'); 
         const ctx = canvas.getContext('2d'); 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const angle = 0.523599; // 30 degrees
+        const angle = 0.523599; // 30 degrees for isometric
         const cosA = Math.cos(angle); const sinA = Math.sin(angle);
         
         let minX = Infinity; let maxX = 0; let minY = Infinity; let maxY = 0;
@@ -1143,6 +1385,7 @@
             drawPolygon([b0, bX, bXY, bY], 'rgba(234, 179, 8, 0.4)');
         }
 
+        // Z-Buffer sorting for isometric (Back to front)
         blocks3D.sort((a,b) => { return (a.x + a.y + a.z) - (b.x + b.y + b.z); });
 
         // Draw the Cargo Blocks
