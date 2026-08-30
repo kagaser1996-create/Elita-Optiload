@@ -356,7 +356,7 @@
     // SUPABASE CLIENT INITIALIZATION
     // ==========================================
     const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iOiJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
     
     let supabaseClient = null;
     let currentUser = null;
@@ -446,6 +446,17 @@
         debouncedRunEngine(); 
     }
 
+    // --- SUPABASE AUTH EVENTS ---
+    function handleAuthChange(user) {
+        currentUser = user;
+        if (user) {
+            document.getElementById('authModal').classList.add('hidden');
+            loadUserProfile(user.id);
+        } else {
+            document.getElementById('authModal').classList.remove('hidden');
+        }
+    }
+
     function switchAuthTab(mode) {
         authMode = mode;
         const btnLogin = document.getElementById('authTabLogin');
@@ -468,54 +479,90 @@
         }
     }
 
-    function handleAuthChange(user) {
-        currentUser = user;
-        if (user) {
-            document.getElementById('authModal').classList.add('hidden');
-            loadUserProfile(user.id);
+    async function handleAuthSubmit() {
+        if (authMode === 'login') {
+            await handleLogin();
         } else {
-            document.getElementById('authModal').classList.remove('hidden');
+            await handleRegister();
         }
     }
 
-    async function handleAuthSubmit() {
-        if(!supabaseClient) return alert("Supabase API bilgileri eksik!");
+    async function handleRegister() {
+        const errLabel = document.getElementById('authErrorMsg');
+        errLabel.classList.add('hidden');
+        
+        if(!supabaseClient) { 
+            errLabel.innerText="Veritabanı bağlantısı yok. Lütfen sayfayı yenileyin."; 
+            errLabel.classList.remove('hidden'); 
+            return; 
+        }
+        
         const email = document.getElementById('authEmail').value.trim();
         const password = document.getElementById('authPassword').value;
-        const err = document.getElementById('authErrorMsg');
-        const submitBtn = document.getElementById('authSubmitBtn');
-
-        if (!email || !password) {
-            err.innerText = "Lütfen e-posta ve şifrenizi girin.";
-            err.classList.remove('hidden');
-            return;
+        if(!email || !password) { 
+            errLabel.innerText="Email ve şifre gereklidir."; 
+            errLabel.classList.remove('hidden'); 
+            return; 
         }
-
-        err.classList.add('hidden');
-        submitBtn.innerText = "İşlem yapılıyor...";
-        submitBtn.disabled = true;
-
+        
+        const btn = document.getElementById('authSubmitBtn');
         try {
-            if (authMode === 'login') {
-                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) throw error;
-            } else {
-                const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
-                let role = document.getElementById('regRole').value;
-                if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') {
-                    role = 'admin';
-                }
-                const { data, error } = await supabaseClient.auth.signUp({
-                    email, password,
-                    options: { data: { full_name: fullName, role: role } }
-                });
-                if (error) throw error;
+            btn.innerText = "Kaydediliyor..."; btn.disabled = true;
+            
+            const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
+            let role = document.getElementById('regRole').value;
+            if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') {
+                role = 'admin';
             }
-        } catch(e) {
-            err.innerText = "Hata: " + e.message;
-            err.classList.remove('hidden');
-            submitBtn.innerText = authMode === 'login' ? "Giriş Yap" : "Kullanıcı Oluştur ve Başla";
-            submitBtn.disabled = false;
+
+            const { data, error } = await supabaseClient.auth.signUp({ 
+                email, password, options: { data: { full_name: fullName, role: role } } 
+            });
+            
+            if (error) throw error;
+            
+            errLabel.innerText = "Kayıt başarılı! Lütfen giriş yapın.";
+            errLabel.classList.remove('hidden', 'text-rose-500');
+            errLabel.classList.add('text-emerald-600');
+            switchAuthTab('login');
+        } catch (e) {
+            errLabel.classList.remove('hidden', 'text-emerald-600');
+            errLabel.classList.add('text-rose-500');
+            errLabel.innerText = "Kayıt hatası: " + e.message;
+        } finally {
+            btn.innerText = "Yeni Hesap Oluştur"; btn.disabled = false;
+        }
+    }
+
+    async function handleLogin() {
+        const errLabel = document.getElementById('authErrorMsg');
+        errLabel.classList.add('hidden');
+        
+        if(!supabaseClient) { 
+            errLabel.innerText="Veritabanı bağlantısı yok. Lütfen sayfayı yenileyin."; 
+            errLabel.classList.remove('hidden'); 
+            return; 
+        }
+        
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value;
+        if(!email || !password) { 
+            errLabel.innerText="Email ve şifre gereklidir."; 
+            errLabel.classList.remove('hidden'); 
+            return; 
+        }
+        
+        const btn = document.getElementById('authSubmitBtn');
+        try {
+            btn.innerText = "Bağlanıyor..."; btn.disabled = true;
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+        } catch (e) {
+            errLabel.classList.remove('hidden', 'text-emerald-600');
+            errLabel.classList.add('text-rose-500');
+            errLabel.innerText = "Giriş hatası: " + e.message;
+        } finally {
+            btn.innerText = "Giriş Yap"; btn.disabled = false;
         }
     }
 
@@ -558,9 +605,25 @@
         }
     }
 
-    async function handleLogout() {
+    async function handleLogout() { 
         if(supabaseClient) await supabaseClient.auth.signOut(); 
-        location.reload();
+        location.reload(); 
+    }
+
+    function getUIDataPayload() {
+        let mixedData = [];
+        document.querySelectorAll('.mixed-row').forEach(row => {
+            mixedData.push({ skuIdx: row.querySelector('.mixed-sku').value, val: row.querySelector('.mixed-val').value });
+        });
+
+        return {
+            mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
+            maxWgt: document.getElementById('maxWgt').value, targetBoxes: document.getElementById('targetBoxes').value,
+            baseType: document.getElementById('baseType').value, specificBaseSize: document.getElementById('specificBaseSize').value,
+            optFrontCurve: document.getElementById('optFrontCurve').checked, optDoor: document.getElementById('optDoor').checked,
+            optAirbag: document.getElementById('optAirbag').checked, optLashing: document.getElementById('optLashing').checked,
+            singleSkuIdx: document.getElementById('skuSelect').value, mixedData: mixedData
+        };
     }
 
     async function saveSimulation(status) {
@@ -572,22 +635,7 @@
         if (status === 'bekliyor') { btnSales.innerText = "Gönderiliyor..."; btnSales.disabled = true; } 
         else { btnLogistics.innerText = "Kaydediliyor..."; btnLogistics.disabled = true; }
 
-        let input_data = {
-            mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
-            baseType: document.getElementById('baseType').value, optFrontCurve: document.getElementById('optFrontCurve').checked,
-            optDoor: document.getElementById('optDoor').checked, optAirbag: document.getElementById('optAirbag').checked,
-            optLashing: document.getElementById('optLashing').checked
-        };
-        
-        if (currentMode === 'single') {
-            input_data.skuSelect = document.getElementById('skuSelect').value;
-            input_data.targetBoxes = document.getElementById('targetBoxes').value;
-        } else {
-            let rows = Array.from(document.querySelectorAll('.mixed-row'));
-            input_data.mixedRows = rows.map(r => ({
-                sku: r.querySelector('.mixed-sku').value, count: r.querySelector('.mixed-val').value
-            }));
-        }
+        let input_data = getUIDataPayload();
 
         const payload = {
             status: status, mode: currentMode, vehicle_type: document.getElementById('vehicleType').value, base_type: document.getElementById('baseType').value,
@@ -613,12 +661,8 @@
         if (status === 'bekliyor') { btnSales.innerHTML = "↗ Lojistik Onayına Gönder"; btnSales.disabled = false; } 
         else { btnLogistics.innerHTML = "✓ Nihai Planı Onayla"; btnLogistics.disabled = false; }
 
-        if (dbError) {
-            alert("Kayıt hatası: " + dbError.message);
-        } else {
-            alert(status === 'bekliyor' ? "Talebiniz başarıyla Lojistik Onayına gönderildi!" : "✅ Yükleme planı başarıyla ONAYLANDI!");
-            currentSimulationId = null; 
-        }
+        if (dbError) { alert("Kayıt hatası: " + dbError.message); } 
+        else { alert(status === 'bekliyor' ? "Talebiniz başarıyla Lojistik Onayına gönderildi!" : "✅ Yükleme planı başarıyla ONAYLANDI!"); currentSimulationId = null; }
     }
 
     async function loadSimulationIntoEditor(id) {
@@ -630,19 +674,21 @@
 
         switchTab(inputs.mode || 'mixed');
         document.getElementById('vehicleType').value = inputs.vehicleType;
+        document.getElementById('maxWgt').value = inputs.maxWgt || 25000;
+        document.getElementById('targetBoxes').value = inputs.targetBoxes || 0;
         document.getElementById('baseType').value = inputs.baseType;
+        document.getElementById('specificBaseSize').value = inputs.specificBaseSize || 'auto';
         document.getElementById('optFrontCurve').checked = inputs.optFrontCurve;
         document.getElementById('optDoor').checked = inputs.optDoor;
         document.getElementById('optAirbag').checked = inputs.optAirbag || false;
         document.getElementById('optLashing').checked = inputs.optLashing || false;
 
         if (inputs.mode === 'single') {
-            document.getElementById('skuSelect').value = inputs.skuSelect;
-            document.getElementById('targetBoxes').value = inputs.targetBoxes || 0;
+            document.getElementById('skuSelect').value = inputs.singleSkuIdx || 0;
             populateSKU();
         } else {
             document.getElementById('mixedList').innerHTML = ''; 
-            inputs.mixedRows.forEach(row => { addMixedRowWithCount(parseInt(row.sku), parseInt(row.count)); });
+            (inputs.mixedData || []).forEach(row => { addMixedRowWithCount(parseInt(row.skuIdx), parseInt(row.val)); });
         }
 
         updateVehicleDims(); handleBaseChange(); debouncedRunEngine(); closeDashboard();
@@ -728,7 +774,6 @@
         document.getElementById('tab-mixed').className = mode === 'mixed' ? 'tab-btn active text-sm text-center py-3' : 'tab-btn text-sm text-slate-500 text-center py-3';
         document.getElementById('panel-single').style.display = mode === 'single' ? 'block' : 'none';
         document.getElementById('panel-mixed').style.display = mode === 'mixed' ? 'block' : 'none';
-        document.getElementById('targetBoxesGroup').style.display = mode === 'single' ? 'block' : 'none';
         debouncedRunEngine(); 
     }
 
@@ -876,29 +921,46 @@
                 let c2 = Math.floor(effContW / skuObj.L); let r2 = Math.floor(effContL / skuObj.W);
                 let isRotated = (c2 * r2) > (c1 * r1);
                 let cols = isRotated ? c2 : c1;
+                let maxRows = isRotated ? r2 : r1;
                 let actualBoxW = isRotated ? skuObj.L : skuObj.W;
                 let actualBoxL = isRotated ? skuObj.W : skuObj.L;
+                let floorFit = cols * maxRows;
                 
-                let floorFit = cols * 1; 
                 let maxBoxesByWgt = Math.floor(maxWgt / skuObj.Wt);
-                let maxBoxesByVol = (isRotated ? r2 : r1) * floorFit * physMaxLayers;
+                let maxBoxesByVol = floorFit * physMaxLayers;
                 let realisticTarget = targetBoxes > 0 ? Math.min(targetBoxes, maxBoxesByWgt, maxBoxesByVol) : Math.min(maxBoxesByVol, maxBoxesByWgt);
                 
-                let remaining = realisticTarget;
-                while (remaining > 0) {
-                    let boxesInThisRow = Math.min(remaining, floorFit * physMaxLayers);
-                    let displayLayers = Math.ceil(boxesInThisRow / floorFit);
-                    let blockW = cols * actualBoxW;
-                    let blockL = actualBoxL;
+                let minLayersNeeded = Math.ceil(realisticTarget / floorFit);
+                let activeMaxLayers = Math.min(physMaxLayers, Math.max(1, minLayersNeeded));
 
-                    itemsToPack.push({
-                        id: skuObj.name, priority: 0, target: targetBoxes, count: 1, 
-                        l: blockL, w: blockW, h: displayLayers * skuObj.H, 
-                        boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: floorFit * physMaxLayers, boxWt: skuObj.Wt, wgt: boxesInThisRow * skuObj.Wt, isPartial: boxesInThisRow < (floorFit * physMaxLayers), area: blockL * blockW,
-                        palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: colorMap[0],
-                        layoutCols: cols, layoutRows: 1, layoutLayers: physMaxLayers
-                    });
-                    remaining -= boxesInThisRow;
+                let remaining = realisticTarget;
+                let currentLayer = 0;
+                let boxesPerRow = new Array(maxRows).fill(0);
+                
+                while (remaining > 0 && currentLayer < activeMaxLayers) {
+                    for (let r = 0; r < maxRows; r++) {
+                        if (remaining === 0) break;
+                        let toAdd = Math.min(cols, remaining);
+                        boxesPerRow[r] += toAdd;
+                        remaining -= toAdd;
+                    }
+                    currentLayer++;
+                }
+
+                for (let r = 0; r < maxRows; r++) {
+                    if (boxesPerRow[r] > 0) {
+                        let rowBoxCount = boxesPerRow[r];
+                        let rowLayers = Math.ceil(rowBoxCount / cols);
+                        let blockW = cols * actualBoxW;
+                        let blockL = actualBoxL;
+                        
+                        itemsToPack.push({
+                            id: skuObj.name, priority: 0, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * skuObj.H, 
+                            boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: skuObj.Wt, wgt: rowBoxCount * skuObj.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
+                            palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Dökme İstif', colorSet: colorMap[0],
+                            layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, count: 1
+                        });
+                    }
                 }
             } else {
                 let pConfig = getBestPalletConfig(skuObj, baseType, contH, maxWgt);
@@ -911,11 +973,11 @@
                     for(let k=0; k<pallets; k++) {
                         let b = Math.min(pConfig.boxesPerLoad, realisticTarget - (k*pConfig.boxesPerLoad));
                         itemsToPack.push({
-                            id: skuObj.name, priority: 0, target: targetBoxes, count: 1, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, 
+                            id: skuObj.name, priority: 0, target: targetBoxes, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, 
                             boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: skuObj.Wt, wgt: (b * skuObj.Wt) + (baseType==='pallet'?25:0), 
                             isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW,
                             palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, 
-                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0]
+                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0], count: 1
                         });
                     }
                 }
@@ -937,28 +999,44 @@
 
                     let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
                     let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
+                    let floorFit = Math.max(c1 * r1, c2 * r2);
                     let isRotated = (c2 * r2) > (c1 * r1);
                     let cols = isRotated ? c2 : c1;
+                    let maxRows = isRotated ? r2 : r1;
                     let actualBoxW = isRotated ? sku.L : sku.W;
                     let actualBoxL = isRotated ? sku.W : sku.L;
 
-                    let floorFit = cols * 1; 
+                    let minLayersNeeded = Math.ceil(targetBoxes / floorFit);
+                    let activeMaxLayers = Math.min(physMaxLayers, Math.max(1, minLayersNeeded));
+
                     let remaining = targetBoxes;
+                    let currentLayer = 0;
+                    let boxesPerRow = new Array(maxRows).fill(0);
+                    
+                    while (remaining > 0 && currentLayer < activeMaxLayers) {
+                        for (let rx = 0; rx < maxRows; rx++) {
+                            if (remaining === 0) break;
+                            let toAdd = Math.min(cols, remaining);
+                            boxesPerRow[rx] += toAdd;
+                            remaining -= toAdd;
+                        }
+                        currentLayer++;
+                    }
 
-                    while (remaining > 0) {
-                        let boxesInThisRow = Math.min(remaining, floorFit * physMaxLayers);
-                        let displayLayers = Math.ceil(boxesInThisRow / floorFit);
-                        let blockW = cols * actualBoxW;
-                        let blockL = actualBoxL;
-
-                        itemsToPack.push({
-                            id: sku.name, priority: idx, target: targetBoxes, count: 1, 
-                            l: blockL, w: blockW, h: displayLayers * sku.H, 
-                            boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: floorFit * physMaxLayers, boxWt: sku.Wt, wgt: boxesInThisRow * sku.Wt, isPartial: boxesInThisRow < (floorFit * physMaxLayers), area: blockL * blockW,
-                            palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
-                            layoutCols: cols, layoutRows: 1, layoutLayers: physMaxLayers
-                        });
-                        remaining -= boxesInThisRow;
+                    for (let rx = 0; rx < maxRows; rx++) {
+                        if (boxesPerRow[rx] > 0) {
+                            let rowBoxCount = boxesPerRow[rx];
+                            let rowLayers = Math.ceil(rowBoxCount / cols);
+                            let blockW = cols * actualBoxW;
+                            let blockL = actualBoxL;
+                            
+                            itemsToPack.push({
+                                id: sku.name, priority: idx, count: 1, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * sku.H, 
+                                boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
+                                palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Dökme İstif', colorSet: rColorSet,
+                                layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers
+                            });
+                        }
                     }
                 } else {
                     let pConfig = getBestPalletConfig(sku, baseType, contH, maxWgt);
@@ -974,6 +1052,7 @@
         }
 
         let result = unifiedPacker(itemsToPack, effContL, effContW, maxWgt, baseType);
+        lastComputedResult = result;
         updateUnifiedUI(result, contL, contW, maxWgt, baseType, optFrontCurve, titleText);
     }
 
@@ -1016,12 +1095,12 @@
         
         let queue = [];
         itemTypes.forEach((type) => { for(let i=0; i<Math.min(type.count, 5000); i++) queue.push({...type}); });
+        
         queue.sort((a,b) => { if (a.priority !== b.priority) return a.priority - b.priority; return b.area - a.area; });
 
         for (let i = 0; i < queue.length; i++) {
             let item = queue[i]; let baseTare = baseType === 'pallet' ? 25 : 0;
-            let hitWeightLimit = false;
-
+            
             if (totalWgt + item.wgt > maxWgt) {
                 let remWgt = maxWgt - totalWgt;
                 if (remWgt > baseTare) {
@@ -1031,7 +1110,6 @@
                         item.wgt = (allowBoxes * item.boxWt) + baseTare; 
                         item.isPartial = true; 
                         item.rejectReason = "Araç toplam tonaj limiti (" + maxWgt + " kg) sınırına ulaşıldı.";
-                        hitWeightLimit = true;
                     } else { break; } 
                 } else { break; } 
             }
@@ -1058,7 +1136,6 @@
                 });
                 totalWgt += item.wgt; totalBoxes += item.boxes;
                 splitFreeRects(freeRects, bestNode.x, bestNode.y, pL, pW);
-                if (hitWeightLimit) break; 
             } else {
                 item.rejectReason = "Araç zemininde fiziksel olarak yer kalmadı.";
             }
@@ -1116,7 +1193,7 @@
             let bOffsetX = ((patL * scale) - (loadL * scale)) / 2;
             let bOffsetY = ((patW * scale) - (loadW * scale)) / 2;
             ctx.translate(bOffsetX, bOffsetY);
-            for(let r=0; r<1; r++){ // Just show one row depth for floor preview
+            for(let r=0; r<1; r++){
                 for(let c=0; c<item.layoutCols; c++){
                     ctx.fillStyle = item.colorSet.top;
                     ctx.fillRect(r * item.palletBlocks[0].l * scale, c * item.palletBlocks[0].w * scale, item.palletBlocks[0].l * scale - 1, item.palletBlocks[0].w * scale - 1);
@@ -1166,19 +1243,16 @@
 
         let tableGroups = {};
         result.placedItems.forEach(p => {
-            let gKey = p.id; 
-            if(!tableGroups[gKey]) {
-                tableGroups[gKey] = { boxes: 0, items: 0, partials: 0, target: p.target, reason: p.rejectReason, patternName: p.patternName, boxesPerUnit: p.boxesPerUnit, colorSet: p.colorSet, priority: p.priority, layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers };
-            }
-            tableGroups[gKey].boxes += p.boxes; tableGroups[gKey].items++;
-            if(p.isPartial) { tableGroups[gKey].partials++; tableGroups[gKey].reason = p.rejectReason || tableGroups[gKey].reason; }
+            if(!tableGroups[p.id]) tableGroups[p.id] = { boxes: 0, items: 0, partials: 0, target: p.target, reason: p.rejectReason, patternName: p.patternName, boxesPerUnit: p.boxesPerUnit, colorSet: p.colorSet, priority: p.priority, layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers };
+            tableGroups[p.id].boxes += p.boxes; tableGroups[p.id].items++;
+            if(p.isPartial) { tableGroups[p.id].partials++; tableGroups[p.id].reason = p.rejectReason; }
         });
 
         let sortedGroups = Object.values(tableGroups).sort((a,b) => a.priority - b.priority);
         let tbody = document.getElementById('mixedResultsBody'); tbody.innerHTML = '';
         
         for(let tg of sortedGroups) {
-            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
+            let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
             let diagBtn = "";
             if (tg.boxes < tg.target && tg.target > 0) {
                 let reasonTxt = tg.reason || "Kapasite/Alan sınırı.";
@@ -1193,7 +1267,7 @@
 
         let skuDetailsHtml = '';
         sortedGroups.forEach((tg, idx) => {
-            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
+            let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
             let safeSkuId = "pallet_canvas_" + idx;
             
             let layoutStr = "";
@@ -1271,7 +1345,7 @@
         `;
 
         sortedGroups.forEach((tg, idx) => {
-            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
+            let sku = Object.keys(tableGroups).find(k => tableGroups[k] === tg);
             let safeSkuId = "pallet_canvas_" + idx;
             let sampleItem = result.placedItems.find(p => p.id === sku);
             if(sampleItem) drawPalletPreview(safeSkuId, sampleItem, baseType);
@@ -1280,6 +1354,9 @@
         drawIsometricMixedCanvas(result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX);
     }
 
+    // ==========================================
+    // 🚀 3D ISOMETRIC RENDERING ENGINE (PERFECT PROJECTION)
+    // ==========================================
     function drawIsometricMixedCanvas(placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX) {
         const canvas = document.getElementById('contCanvas'); 
         if(!canvas) return;
@@ -1301,7 +1378,8 @@
         });
         if (placedItems.length === 0) { minX = 0; maxX = 0; minY = 0; maxY = 0; }
         
-        let totalLoadL = maxX - minX; let totalLoadW = maxY - minY; 
+        let totalLoadL = maxX - minX; 
+        let totalLoadW = maxY - minY; 
         let offsetY = ((contW - 10) - totalLoadW) / 2; 
 
         let blocks3D = [];
