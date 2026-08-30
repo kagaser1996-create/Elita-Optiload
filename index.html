@@ -31,7 +31,7 @@
         @media print {
             @page { size: A4 landscape; margin: 8mm; }
             html, body { height: auto !important; overflow: visible !important; background-color: white !important; font-size: 9pt; display: block !important; }
-            .h-screen { height: auto !important; }
+            .min-h-\[100dvh\] { min-height: auto !important; height: auto !important; }
             .flex-grow, .overflow-y-auto, .overflow-hidden { overflow: visible !important; height: auto !important; max-height: none !important; }
             .no-print { display: none !important; }
             .print-only { display: block !important; }
@@ -53,7 +53,7 @@
         }
     </style>
 </head>
-<body class="p-0 md:p-4 h-screen flex flex-col">
+<body class="p-2 md:p-4 min-h-[100dvh] lg:h-[100dvh] flex flex-col">
 
 <!-- DIAGNOSTIC MODAL -->
 <div id="diagnosticModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center px-4 no-print">
@@ -69,10 +69,10 @@
 
 <!-- 1. AUTHENTICATION MODAL -->
 <div id="authModal" class="hidden fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border-t-8 border-sky-500">
+    <div class="bg-white p-6 md:p-8 rounded-2xl shadow-2xl max-w-md w-full border-t-8 border-sky-500">
         <div class="flex items-center gap-3 mb-2 justify-center">
             <div class="w-10 h-10 bg-sky-500 rounded flex items-center justify-center font-black text-white text-2xl">E</div>
-            <h2 class="text-3xl font-black text-slate-800 tracking-tight">Elita <span class="font-light text-sky-500">OptiLoad</span></h2>
+            <h2 class="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">Elita <span class="font-light text-sky-500">OptiLoad</span></h2>
         </div>
         <p class="text-center text-slate-500 font-bold mb-6 uppercase text-[11px] tracking-widest">Saha & Lojistik Giriş Paneli</p>
         
@@ -121,21 +121,23 @@
             </div>
             <button onclick="closeDashboard()" class="text-slate-400 hover:text-white font-black text-lg">✕</button>
         </div>
-        <div class="p-6 overflow-y-auto flex-grow custom-scrollbar">
+        <div class="p-4 md:p-6 overflow-y-auto flex-grow custom-scrollbar">
             <div id="dashboardLoading" class="text-center text-slate-400 py-8 font-semibold">Kayıtlar yükleniyor, lütfen bekleyin...</div>
-            <table id="dashboardTable" class="w-full text-left text-xs bg-white rounded border border-slate-200 hidden">
-                <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b">
-                    <tr>
-                        <th class="p-3">Tarih</th>
-                        <th class="p-3">Durum</th>
-                        <th class="p-3">Satış Temsilcisi</th>
-                        <th class="p-3">Lojistik Onayı</th>
-                        <th class="p-3">Araç & Yük</th>
-                        <th class="p-3 text-center">İşlem</th>
-                    </tr>
-                </thead>
-                <tbody id="dashboardTableBody" class="divide-y divide-slate-100"></tbody>
-            </table>
+            <div class="overflow-x-auto">
+                <table id="dashboardTable" class="w-full text-left text-xs bg-white rounded border border-slate-200 hidden min-w-[600px]">
+                    <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b">
+                        <tr>
+                            <th class="p-3">Tarih</th>
+                            <th class="p-3">Durum</th>
+                            <th class="p-3">Satış Temsilcisi</th>
+                            <th class="p-3">Lojistik Onayı</th>
+                            <th class="p-3">Araç & Yük</th>
+                            <th class="p-3 text-center">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dashboardTableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
@@ -156,43 +158,43 @@
 <nav class="bg-slate-900 text-white shadow-md rounded-t-xl md:rounded-xl mx-auto max-w-[1400px] w-full z-10 relative no-print mb-4">
     <div class="px-4 md:px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
         <div class="flex items-center gap-3 w-full md:w-auto">
-            <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center font-black text-xl tracking-tighter">E</div>
+            <div class="w-6 h-6 md:w-8 md:h-8 bg-sky-500 rounded flex items-center justify-center font-black text-lg md:text-xl tracking-tighter">E</div>
             <div>
-                <h1 class="text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">OptiLoad</span></h1>
-                <p class="text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Dinamik & Statik Saha Operasyon Planlayıcısı</p>
+                <h1 class="text-lg md:text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">3D OptiLoad</span></h1>
+                <p class="text-[9px] md:text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Gelişmiş Fizik & 3D Yükleme Simülatörü</p>
             </div>
         </div>
 
-        <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-            <button onclick="exportCSV()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1.5">
+        <div class="flex items-center gap-2 w-full md:w-auto justify-center md:justify-end flex-wrap mt-2 md:mt-0">
+            <button onclick="exportCSV()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold shadow-md transition-all flex items-center gap-1.5">
                 📊 CSV İndir
             </button>
-            <button onclick="exportPDF()" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1.5">
+            <button onclick="exportPDF()" class="bg-rose-600 hover:bg-rose-500 text-white px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold shadow-md transition-all flex items-center gap-1.5">
                 📄 PDF İndir
             </button>
-            <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all flex items-center gap-1.5">
+            <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold shadow-md transition-all flex items-center gap-1.5">
                 🖨️ Yazdır
             </button>
             
-            <div id="loggedOutView" class="flex gap-2 ml-4">
-                <button onclick="openModal('authModal')" class="text-xs font-bold text-slate-300 hover:text-white">Giriş Yap / Kaydol</button>
+            <div id="loggedOutView" class="flex gap-2 ml-2 md:ml-4">
+                <button onclick="openModal('authModal')" class="text-[10px] md:text-xs font-bold text-slate-300 hover:text-white">Giriş Yap / Kaydol</button>
             </div>
 
-            <div id="loggedInView" class="hidden flex items-center gap-2 flex-wrap ml-4">
-                <div id="userProfileBadge" class="flex items-center gap-2 bg-slate-800 px-3 py-1 rounded-lg border border-slate-700 text-xs">
-                    <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
-                    <span id="userEmailLabel" class="text-slate-300 font-medium">user@mail.com</span>
+            <div id="loggedInView" class="hidden flex items-center gap-2 flex-wrap ml-2 md:ml-4">
+                <div id="userProfileBadge" class="hidden items-center gap-2 bg-slate-800 px-2 py-1 md:px-3 md:py-1 rounded-lg border border-slate-700 text-[10px] md:text-xs">
+                    <span id="userRoleBadge" class="px-1 py-0.5 rounded font-black text-[9px] uppercase">Kullanıcı</span>
+                    <span id="userEmailLabel" class="text-slate-300 font-medium hidden md:inline">user@mail.com</span>
                 </div>
-                <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
-                    📥 Gelen Talepler
+                <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-2 py-1.5 md:px-3.5 md:py-2 rounded-lg text-[10px] md:text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
+                    📥 Talepler
                 </button>
-                <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
-                    ↗ Lojistik Onayına Gönder
+                <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                    ↗ Gönder
                 </button>
-                <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
-                    ✓ Nihai Planı Onayla
+                <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                    ✓ Onayla
                 </button>
-                <button onclick="handleLogout()" class="text-xs text-rose-400 hover:text-rose-300 font-bold ml-1">Çıkış</button>
+                <button onclick="handleLogout()" class="text-[10px] md:text-xs text-rose-400 hover:text-rose-300 font-bold ml-1">Çıkış</button>
             </div>
         </div>
     </div>
@@ -216,7 +218,7 @@
     </div>
 </div>
 
-<div class="flex-grow flex flex-col lg:flex-row max-w-[1400px] mx-auto w-full gap-4 overflow-hidden print-full-width">
+<div class="flex-grow flex flex-col lg:flex-row max-w-[1400px] mx-auto w-full gap-4 print-full-width lg:overflow-hidden">
     
     <!-- LEFT SIDEBAR: INPUTS -->
     <div class="w-full lg:w-[360px] bg-white rounded-xl shadow-md border border-slate-200 flex flex-col no-print flex-shrink-0">
@@ -225,7 +227,7 @@
             <div class="tab-btn text-sm text-slate-500 text-center py-3" id="tab-mixed" onclick="switchTab('mixed')">🔀 Karma (Mixed)</div>
         </div>
 
-        <div class="p-5 overflow-y-auto flex-grow custom-scrollbar">
+        <div class="p-4 md:p-5 lg:overflow-y-auto flex-grow custom-scrollbar">
             <div class="section-header mt-0">Araç & Güvenlik Sınırları</div>
             <div class="input-group mb-3">
                 <select id="vehicleType" onchange="updateVehicleDims(); debouncedRunEngine();">
@@ -243,11 +245,6 @@
                     <input type="number" id="maxWgt" value="25000" max="27800" class="bg-slate-50 text-rose-700 font-bold" oninput="if(this.value > 27800) this.value = 27800;" onchange="debouncedRunEngine()">
                 </div>
                 <div class="input-group"><label>Dökme Katı (İstif)</label><input type="text" value="Zemine Yayılarak" readonly class="!bg-indigo-50 !text-indigo-700 font-bold border-indigo-200 text-[10px] text-center"></div>
-            </div>
-
-            <div class="input-group mb-3 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg hidden" id="targetBoxesGroup">
-                <label class="!text-fuchsia-800 flex items-center justify-between"><span>Hedef Koli (İhtiyaç Kadar)</span></label>
-                <input type="number" id="targetBoxes" value="0" placeholder="0 = Tırı Tamamen Doldur" class="bg-white border-fuchsia-300" oninput="debouncedRunEngine()">
             </div>
 
             <div class="section-header">Taşıma Tabanı</div>
@@ -289,6 +286,10 @@
             <div id="panel-single" class="block">
                 <div class="section-header">Tekil Ürün Modu</div>
                 <div class="input-group mb-3"><select id="skuSelect" onchange="populateSKU(); debouncedRunEngine();"></select></div>
+                <div class="input-group mb-3 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg">
+                    <label class="!text-fuchsia-800 flex items-center justify-between"><span>Hedef Koli (İhtiyaç Kadar)</span></label>
+                    <input type="number" id="targetBoxes" value="0" placeholder="0 = Tırı Tamamen Doldur" class="bg-white border-fuchsia-300" oninput="debouncedRunEngine()">
+                </div>
                 <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <div class="input-group"><label>Uzun (L)</label><input type="number" id="boxL" readonly class="bg-slate-100"></div>
                     <div class="input-group"><label>Geniş (W)</label><input type="number" id="boxW" readonly class="bg-slate-100"></div>
@@ -309,34 +310,34 @@
     </div>
 
     <!-- RIGHT SIDEBAR: VISUALIZATION & PAGINATION -->
-    <div class="flex-grow flex flex-col gap-4 overflow-y-auto print-full-width custom-scrollbar pr-1" id="printArea">
+    <div class="flex-grow flex flex-col gap-4 lg:overflow-y-auto print-full-width custom-scrollbar lg:pr-1" id="printArea">
         
         <!-- MULTI-VEHICLE PAGINATION CONTAINER -->
         <div id="fleetPaginationContainer" class="no-print"></div>
 
-        <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 print-grid print-stats print-break-inside-avoid">
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 print-grid print-stats print-break-inside-avoid">
             <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
                 <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Maksimum Koli</p>
-                <p class="text-2xl font-black text-emerald-600 leading-none" id="resTotalBoxes">-</p>
+                <p class="text-xl md:text-2xl font-black text-emerald-600 leading-none" id="resTotalBoxes">-</p>
             </div>
             <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
                 <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Toplam Brüt Ağırlık</p>
-                <p class="text-2xl font-black text-rose-600 leading-none" id="resWeight">-</p>
+                <p class="text-xl md:text-2xl font-black text-rose-600 leading-none" id="resWeight">-</p>
             </div>
             <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
                 <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Yük İstifi</p>
-                <p class="text-xl font-black text-slate-800 leading-none" id="resLoads">-</p>
+                <p class="text-xl md:text-2xl font-black text-slate-800 leading-none" id="resLoads">-</p>
             </div>
             <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-center">
                 <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Durum / Ağırlık Merkezi</p>
-                <p class="text-sm font-bold text-sky-700 leading-tight mt-1" id="resStatus">-</p>
+                <p class="text-xs md:text-sm font-bold text-sky-700 leading-tight mt-1" id="resStatus">-</p>
             </div>
         </div>
 
         <div id="layerOptimizationInfo" class="print-break-inside-avoid"><div id="optimizationDetailsList"></div></div>
 
         <!-- THIS DIV MOVES TO PAGE 2 ON PRINT -->
-        <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col flex-grow min-h-[450px] print-break-inside-avoid relative print-page-2">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col flex-grow min-h-[300px] md:min-h-[450px] print-break-inside-avoid relative print-page-2">
             <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 rounded-t-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 z-10 relative">
                 <span class="text-sm font-bold text-slate-700">3D İZOMETRİK YÜKLEME SİMÜLASYONU</span>
                 <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200" id="modeConfigLabel">İnteraktif Çizim</span>
@@ -354,18 +355,18 @@
             </div>
 
             <!-- 3D INTERACTIVE CANVAS -->
-            <div class="flex-grow flex items-center justify-center p-4 bg-slate-800 relative rounded-b-xl overflow-hidden min-h-[450px]">
-                <div class="absolute top-4 right-4 z-20 flex gap-2 no-print">
-                    <button onclick="resetView()" class="bg-white text-slate-800 px-3 py-1.5 rounded shadow-lg border border-slate-300 hover:bg-slate-100 font-bold text-xs flex items-center gap-1 transition">
-                        <span class="text-lg leading-none">⟲</span> Merkeze Al
+            <div class="flex-grow flex items-center justify-center p-2 md:p-4 bg-slate-800 relative rounded-b-xl overflow-hidden min-h-[300px] md:min-h-[450px]">
+                <div class="absolute top-2 right-2 md:top-4 md:right-4 z-20 flex gap-2 no-print">
+                    <button onclick="resetView()" class="bg-white text-slate-800 px-2 py-1.5 md:px-3 md:py-1.5 rounded shadow-lg border border-slate-300 hover:bg-slate-100 font-bold text-[10px] md:text-xs flex items-center gap-1 transition">
+                        <span class="text-sm md:text-lg leading-none">⟲</span> Merkeze Al
                     </button>
                 </div>
-                <div class="absolute bottom-4 left-4 z-20 pointer-events-none no-print">
-                    <span class="bg-slate-900/70 text-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-semibold backdrop-blur-sm">
-                        🖱️ Sürükleyerek kaydırın, fare tekerleğiyle yakınlaştırın
+                <div class="absolute bottom-2 left-2 md:bottom-4 md:left-4 z-20 pointer-events-none no-print">
+                    <span class="bg-slate-900/70 text-slate-200 px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[9px] md:text-[10px] font-semibold backdrop-blur-sm">
+                        🖱️ Sürükleyerek (veya dokunarak) kaydırın, tekerlekle/çift parmakla yakınlaştırın
                     </span>
                 </div>
-                <canvas id="contCanvas" width="900" height="500" class="max-w-full w-full object-contain"></canvas>
+                <canvas id="contCanvas" width="900" height="500" class="max-w-full w-full h-full object-contain"></canvas>
             </div>
         </div>
     </div>
@@ -432,16 +433,6 @@
         {name: "16 L Tin Can (Teneke)", L: 244, W: 244, H: 323, Wt: 15.59, maxLayers: 4},
         {name: "18 L Tin Can (Teneke)", L: 244, W: 244, H: 359, Wt: 17.43, maxLayers: 4},
         {name: "20 L Jerry Can (Bidon)", L: 244, W: 291, H: 393, Wt: 19.20, maxLayers: 4} 
-    ];
-
-    let currentMode = 'single';
-    const colorMap = [
-        { base: '#0284c7', top: '#38bdf8', right: '#0369a1', left: '#075985' }, 
-        { base: '#16a34a', top: '#4ade80', right: '#15803d', left: '#166534' }, 
-        { base: '#d97706', top: '#fbbf24', right: '#b45309', left: '#92400e' }, 
-        { base: '#9333ea', top: '#c084fc', right: '#7e22ce', left: '#6b21a8' }, 
-        { base: '#db2777', top: '#f472b6', right: '#be185d', left: '#9d174d' }, 
-        { base: '#ea580c', top: '#fb923c', right: '#c2410c', left: '#9a3412' }  
     ];
 
     let debounceTimer;
@@ -850,13 +841,16 @@
     }
 
     // ==========================================
-    // PAN & ZOOM CANVAS INTERACTIONS
+    // PAN, ZOOM & TOUCH CANVAS INTERACTIONS
     // ==========================================
     function initCanvasInteractions() {
         const canvas = document.getElementById('contCanvas');
         if(!canvas) return;
         canvas.style.cursor = 'grab';
         
+        let initialPinchDist = null;
+
+        // Mouse Events
         canvas.addEventListener('mousedown', (e) => {
             isDraggingCanvas = true;
             dragStartCanvasX = e.clientX - panX;
@@ -889,6 +883,45 @@
             
             zoomLevel = newZoom;
             if(lastRenderData) performRender(lastRenderData);
+        });
+
+        // Touch Events (Mobile)
+        canvas.addEventListener('touchstart', (e) => {
+            if(e.touches.length === 1) {
+                isDraggingCanvas = true;
+                dragStartCanvasX = e.touches[0].clientX - panX;
+                dragStartCanvasY = e.touches[0].clientY - panY;
+            } else if (e.touches.length === 2) {
+                initialPinchDist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            }
+        }, {passive: false});
+
+        canvas.addEventListener('touchmove', (e) => {
+            if(e.touches.length === 1 && isDraggingCanvas) {
+                e.preventDefault(); 
+                panX = e.touches[0].clientX - dragStartCanvasX;
+                panY = e.touches[0].clientY - dragStartCanvasY;
+                if(lastRenderData) performRender(lastRenderData);
+            } else if (e.touches.length === 2 && initialPinchDist) {
+                e.preventDefault();
+                let dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                let newZoom = zoomLevel * (dist / initialPinchDist);
+                newZoom = Math.max(0.3, Math.min(newZoom, 10));
+                zoomLevel = newZoom;
+                initialPinchDist = dist;
+                if(lastRenderData) performRender(lastRenderData);
+            }
+        }, {passive: false});
+
+        canvas.addEventListener('touchend', () => {
+            isDraggingCanvas = false;
+            initialPinchDist = null;
         });
     }
 
@@ -1037,21 +1070,19 @@
 
         while(queue.length > 0 && safetyCount < 15) {
             let result = unifiedPacker(queue, effContL, effContW, maxWgt, baseType);
-            if(result.placedItems.length === 0) break; // can't fit anything else
+            if(result.placedItems.length === 0) break; 
             
             globalFleet.push(result);
             queue = result.remainingQueue;
             
-            if (infiniteMode) break; // Only do 1 truck if target was 0
+            if (infiniteMode) break; 
             safetyCount++;
         }
 
         if(globalFleet.length === 0) {
-            // Failsafe empty state
             globalFleet.push({ placedItems: [], totalWgt: 0, totalBoxes: 0, remainingQueue: [] });
         }
 
-        // Store context globally for UI switching
         globalEngineContext = { contL, contW, contH, maxWgt, baseType, optFrontCurve, titleText };
         currentVehicleIdx = 0;
         updateFleetUI();
@@ -1103,7 +1134,6 @@
                 if (remWgt > baseTare) {
                     let allowBoxes = Math.floor((remWgt - baseTare) / item.boxWt);
                     if (allowBoxes > 0 && allowBoxes <= item.boxesPerUnit) { 
-                        // Split item for overflow
                         let leftoverBoxes = item.boxes - allowBoxes;
                         if(leftoverBoxes > 0) {
                             let leftoverItem = {...item};
@@ -1170,24 +1200,21 @@
     function updateFleetUI() {
         if(globalFleet.length === 0) return;
 
-        // Render Pagination
         let pagContainer = document.getElementById('fleetPaginationContainer');
         let pagHtml = '';
         if (globalFleet.length > 1) {
-            pagHtml = `<div class="flex gap-2 mb-2 p-3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto">`;
+            pagHtml = `<div class="flex gap-2 mb-3 md:mb-4 p-2 md:p-3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto custom-scrollbar">`;
             globalFleet.forEach((v, idx) => {
                 let activeClass = idx === currentVehicleIdx ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200';
-                pagHtml += `<button onclick="currentVehicleIdx = ${idx}; updateFleetUI();" class="px-5 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-colors ${activeClass}">🚚 Araç ${idx + 1} <span class="text-[10px] font-normal opacity-90 block">${v.totalBoxes} Koli</span></button>`;
+                pagHtml += `<button onclick="currentVehicleIdx = ${idx}; updateFleetUI();" class="px-3 md:px-5 py-2 rounded-lg font-bold text-xs md:text-sm whitespace-nowrap transition-colors ${activeClass}">🚚 Araç ${idx + 1} <span class="text-[9px] md:text-[10px] font-normal opacity-90 block">${v.totalBoxes} Koli</span></button>`;
             });
             pagHtml += `</div>`;
         }
         pagContainer.innerHTML = pagHtml;
 
-        // Render standard UI using current vehicle data
         let vData = globalFleet[currentVehicleIdx];
         const ctx = globalEngineContext;
         
-        // Use vData in place of result for the rest of UI building
         updateUnifiedUI(vData, ctx.contL, ctx.contW, ctx.contH, ctx.maxWgt, ctx.baseType, ctx.optFrontCurve, ctx.titleText);
     }
 
@@ -1289,7 +1316,7 @@
         let tbody = document.getElementById('mixedResultsBody'); tbody.innerHTML = '';
         
         for(let tg of sortedGroups) {
-            let sku = tg.id;
+            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
             let diagBtn = "";
             if (tg.boxes < tg.target && tg.target > 0) {
                 let reasonTxt = tg.reason || "Kapasite/Alan sınırı.";
@@ -1304,7 +1331,7 @@
 
         let skuDetailsHtml = '';
         sortedGroups.forEach((tg, idx) => {
-            let sku = tg.id;
+            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
             let safeSkuId = "pallet_canvas_" + idx;
             
             let orientationText = tg.boxOrientation 
@@ -1370,20 +1397,20 @@
         const useLashing = document.getElementById('optLashing').checked;
 
         document.getElementById('optimizationDetailsList').innerHTML = `
-            <div class="bg-indigo-50 p-5 rounded-2xl border border-indigo-200 mb-2 shadow-md">
-                <h4 class="font-black text-indigo-900 text-base mb-2">👷 ADIM ADIM SAHA OPERATÖR TALİMATI (ARAÇ ${currentVehicleIdx + 1})</h4>
-                <p class="text-[11px] text-indigo-800 mb-4 leading-relaxed font-semibold">Aracı güvenli ve eksiksiz yüklemek için aşağıdaki adımları sırasıyla uygulayın:</p>
-                <div class="mb-4"><h5 class="font-bold text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded">ADIM 1: İSTİFLERİ/PALETLERİ HAZIRLAYIN</h5><ul class="space-y-1">${skuDetailsHtml}</ul></div>
+            <div class="bg-indigo-50 p-4 md:p-5 rounded-2xl border border-indigo-200 mb-2 shadow-md">
+                <h4 class="font-black text-indigo-900 text-sm md:text-base mb-2">👷 ADIM ADIM SAHA OPERATÖR TALİMATI (ARAÇ ${currentVehicleIdx + 1})</h4>
+                <p class="text-[10px] md:text-[11px] text-indigo-800 mb-4 leading-relaxed font-semibold">Aracı güvenli ve eksiksiz yüklemek için aşağıdaki adımları sırasıyla uygulayın:</p>
+                <div class="mb-4"><h5 class="font-bold text-xs md:text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded">ADIM 1: İSTİFLERİ/PALETLERİ HAZIRLAYIN</h5><ul class="space-y-1">${skuDetailsHtml}</ul></div>
                 <div class="mb-4 print-break-inside-avoid">
-                    <h5 class="font-bold text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded mb-2">ADIM 2: ARAÇ İÇİNE YERLEŞTİRİN & MERKEZLEYİN</h5>
-                    <ul class="space-y-2 text-xs text-indigo-900 list-disc pl-5">
+                    <h5 class="font-bold text-xs md:text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded mb-2">ADIM 2: ARAÇ İÇİNE YERLEŞTİRİN & MERKEZLEYİN</h5>
+                    <ul class="space-y-2 text-[10px] md:text-xs text-indigo-900 list-disc pl-5">
                         <li>Aşağıdaki <strong>3D İllüstrasyona</strong> bakarak istifleri araca yükleyin. <strong>TÜM YÜKÜ DORSE GENİŞLİĞİNE GÖRE TAM ORTALAYIN.</strong></li>
                         <li>Yukarıdaki "Kutu Yönü" talimatına kesinlikle uyun. Bazı kutular araca tam sığması için <strong>yan çevrilmiştir (90 derece döndürülmüştür)</strong>.</li>
                     </ul>
                 </div>
                 <div class="print-break-inside-avoid">
-                    <h5 class="font-bold text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded">ADIM 3: GÜVENLİK VE SABİTLEME (STATİK/DİNAMİK ETKİLER)</h5>
-                    <ul class="space-y-2 text-xs mt-2 pl-2 text-indigo-900">
+                    <h5 class="font-bold text-xs md:text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded">ADIM 3: GÜVENLİK VE SABİTLEME (STATİK/DİNAMİK ETKİLER)</h5>
+                    <ul class="space-y-2 text-[10px] md:text-xs mt-2 pl-2 text-indigo-900">
                         ${(useAirbag && gapW > 100) ? `<li>🔄 <strong>Yanal Merkezkaç Etkisi:</strong> Yük ortalandığında yanlarda toplam ${Math.floor(gapW)}mm boşluk kalmaktadır. Virajlarda devrilmeyi önlemek için bu boşluklara <strong>Hava Yastığı (Airbag) veya Takoz</strong> yerleştirilmelidir.</li>` : '<li>✅ Yanal alan güvenli seviyede doludur (veya Hava Yastığı opsiyonu kapalı).</li>'}
                         ${(useLashing && gapL > 200) ? `<li>🚚 <strong>Frenleme/İvme Etkisi:</strong> Yük arka kapıya tam ulaşmamaktadır (${Math.floor(gapL)}mm). Yola çıkmadan önce yükün bittiği noktaya <strong>Spanset (Lashing)</strong> çekilerek yük sabitlenmelidir.</li>` : '<li>✅ Uzunlamasına boşluk güvenli seviyededir (veya Spanset opsiyonu kapalı).</li>'}
                     </ul>
@@ -1502,7 +1529,7 @@
 
             let centerTop = project(b.x + b.l/2, b.y + b.w/2, b.z + b.h);
             ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
-            let fontSize = Math.max(8, 10 * zoomLevel); 
+            let fontSize = Math.max(6, 10 * zoomLevel); 
             ctx.font = `900 ${fontSize}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             
             let textWidth = ctx.measureText(b.label).width;
@@ -1519,7 +1546,7 @@
             ctx.beginPath(); ctx.arc(cogPt.x, cogPt.y, rad, 0, 2*Math.PI);
             ctx.fillStyle = 'rgba(225, 29, 72, 0.85)'; ctx.fill();
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5 * zoomLevel; ctx.stroke();
-            ctx.fillStyle = '#ffffff'; ctx.font = `bold ${Math.max(8, 9*zoomLevel)}px Inter`; ctx.fillText('⌖ CoG', cogPt.x, cogPt.y - (10*zoomLevel));
+            ctx.fillStyle = '#ffffff'; ctx.font = `bold ${Math.max(6, 9*zoomLevel)}px Inter`; ctx.fillText('⌖ CoG', cogPt.x, cogPt.y - (10*zoomLevel));
         }
 
         if (useLashing && placedItems.length > 0 && drawL - totalLoadL > 200) {
@@ -1528,7 +1555,7 @@
             let lZ = project(lashX, 0, drawH); let lYZ = project(lashX, drawW, drawH);
             drawPolygon([l0, lY, lYZ, lZ], 'rgba(249, 115, 22, 0.45)', '#ea580c');
             let lCenter = project(lashX, drawW/2, drawH/2);
-            ctx.fillStyle = '#ea580c'; ctx.font = `bold ${Math.max(8, 11*zoomLevel)}px Inter`; ctx.fillText('SPANSET', lCenter.x, lCenter.y);
+            ctx.fillStyle = '#ea580c'; ctx.font = `bold ${Math.max(6, 11*zoomLevel)}px Inter`; ctx.fillText('SPANSET', lCenter.x, lCenter.y);
         }
     }
 </script>
