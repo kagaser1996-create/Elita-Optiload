@@ -152,8 +152,8 @@
 
 <!-- TOP NAVIGATION BAR -->
 <nav class="bg-slate-900 text-white shadow-md rounded-t-xl md:rounded-xl mx-auto max-w-[1400px] w-full z-10 relative no-print mb-4">
-    <div class="px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
-        <div class="flex items-center gap-3">
+    <div class="px-4 md:px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
+        <div class="flex items-center gap-3 w-full md:w-auto">
             <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center font-black text-xl tracking-tighter">E</div>
             <div>
                 <h1 class="text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">OptiLoad</span></h1>
@@ -162,33 +162,36 @@
         </div>
 
         <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-            <div id="userProfileBadge" class="hidden items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs mr-2">
-                <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
-                <span id="userEmailLabel" class="text-slate-300 font-medium">user@example.com</span>
+            <div id="loggedOutView" class="flex gap-2">
+                <button onclick="openModal('authModal')" class="text-sm font-bold text-white hover:text-sky-300">Giriş Yap / Kaydol</button>
             </div>
 
-            <!-- Dashboard Button -->
-            <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
-                📥 Gelen Talepler
-            </button>
+            <div id="loggedInView" class="hidden flex items-center gap-2 flex-wrap">
+                <div id="userProfileBadge" class="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs mr-2">
+                    <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
+                    <span id="userEmailLabel" class="text-slate-300 font-medium">user@mail.com</span>
+                </div>
 
-            <!-- Sales Submission Button -->
-            <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
-                ↗ Lojistik Onayına Gönder
-            </button>
+                <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
+                    📥 Gelen Talepler
+                </button>
 
-            <!-- Logistics Approval Button -->
-            <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
-                ✓ Nihai Planı Onayla
-            </button>
+                <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                    ↗ Lojistik Onayına Gönder
+                </button>
 
-            <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-1.5">
-                Saha Formunu Yazdır
-            </button>
+                <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                    ✓ Nihai Planı Onayla
+                </button>
 
-            <button onclick="handleLogout()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 px-3 py-2 rounded-lg text-xs font-bold transition-all ml-2">
-                Çıkış
-            </button>
+                <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-1.5">
+                    Saha Formunu Yazdır
+                </button>
+
+                <button onclick="handleLogout()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 px-3 py-2 rounded-lg text-xs font-bold transition-all ml-2">
+                    Çıkış
+                </button>
+            </div>
         </div>
     </div>
 </nav>
@@ -248,7 +251,7 @@
                     <option value="floor">Dökme / Zemin Yükleme</option>
                 </select>
             </div>
-            <div id="palletDropdownGroup" class="input-group mb-3">
+            <div id="palletDropdownGroup" class="input-group mb-3" style="display:none;">
                 <select id="specificBaseSize" onchange="debouncedRunEngine()">
                     <option value="auto">🌟 Otomatik Seçim (En Verimli)</option>
                     <option value="0">80x120 cm Euro Palet</option>
@@ -345,19 +348,16 @@
 
             <!-- 3D INTERACTIVE CANVAS -->
             <div class="flex-grow flex items-center justify-center p-4 bg-slate-800 relative rounded-b-xl overflow-hidden min-h-[450px]">
-                
                 <div class="absolute top-4 right-4 z-20 flex gap-2 no-print">
                     <button onclick="resetView()" class="bg-white text-slate-800 px-3 py-1.5 rounded shadow-lg border border-slate-300 hover:bg-slate-100 font-bold text-xs flex items-center gap-1 transition">
                         <span class="text-lg leading-none">⟲</span> Merkeze Al
                     </button>
                 </div>
-                
                 <div class="absolute bottom-4 left-4 z-20 pointer-events-none no-print">
                     <span class="bg-slate-900/70 text-slate-200 px-3 py-1.5 rounded-lg text-[10px] font-semibold backdrop-blur-sm">
                         🖱️ Sürükleyerek kaydırın, fare tekerleğiyle yakınlaştırın
                     </span>
                 </div>
-
                 <canvas id="contCanvas" width="900" height="500" class="max-w-full w-full object-contain"></canvas>
             </div>
         </div>
@@ -366,7 +366,7 @@
 
 <script>
     // ==========================================
-    // SUPABASE CLIENT INITIALIZATION
+    // SUPABASE CONFIG & GLOBAL VARS
     // ==========================================
     const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
@@ -383,23 +383,6 @@
     let isDraggingCanvas = false, dragStartCanvasX = 0, dragStartCanvasY = 0;
     let lastRenderData = null;
 
-    window.addEventListener('DOMContentLoaded', () => {
-        if (window.supabase) {
-            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            supabaseClient.auth.getSession().then(({ data: { session } }) => { 
-                if (session) handleAuthChange(session.user); 
-            });
-            supabaseClient.auth.onAuthStateChange((_event, session) => { 
-                handleAuthChange(session?.user || null); 
-            });
-        }
-        init();
-        initCanvasInteractions();
-    });
-
-    // ==========================================
-    // DATABASE & GLOBAL VARIABLES
-    // ==========================================
     const skuDatabase = [
         {name: "0,750*12 İNCEBELLİ", L: 262, W: 279, H: 278, Wt: 8.83, maxLayers: 9},
         {name: "0,75*20 BÜKLÜM", L: 319, W: 402, H: 273, Wt: 14.69, maxLayers: 9},
@@ -452,9 +435,20 @@
     let debounceTimer;
     let dragSrcEl = null;
 
-    // ==========================================
-    // INITIALIZATION & UI CONTROLS
-    // ==========================================
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.supabase) {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            supabaseClient.auth.getSession().then(({ data: { session } }) => { 
+                if (session) handleAuthChange(session.user); 
+            });
+            supabaseClient.auth.onAuthStateChange((_event, session) => { 
+                handleAuthChange(session?.user || null); 
+            });
+        }
+        init();
+        initCanvasInteractions();
+    });
+
     function init() {
         populateSelects();
         populateSKU();
@@ -463,6 +457,23 @@
         updateVehicleDims();
         handleBaseChange();
         debouncedRunEngine(); 
+    }
+
+    // ==========================================
+    // AUTH & DB FUNCTIONS
+    // ==========================================
+    function handleAuthChange(user) {
+        currentUser = user;
+        if (user) {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('loggedOutView').classList.add('hidden');
+            document.getElementById('loggedInView').classList.remove('hidden');
+            loadUserProfile(user.id);
+        } else {
+            document.getElementById('authModal').classList.remove('hidden');
+            document.getElementById('loggedOutView').classList.remove('hidden');
+            document.getElementById('loggedInView').classList.add('hidden');
+        }
     }
 
     function switchAuthTab(mode) {
@@ -488,43 +499,60 @@
     }
 
     async function handleAuthSubmit() {
-        if(!supabaseClient) return alert("Supabase API bilgileri eksik!");
+        if (authMode === 'login') await handleLogin();
+        else await handleRegister();
+    }
+
+    async function handleRegister() {
+        const errLabel = document.getElementById('authErrorMsg');
+        errLabel.classList.add('hidden');
+        if(!supabaseClient) { errLabel.innerText="Veritabanı bağlantısı yok."; errLabel.classList.remove('hidden'); return; }
+        
         const email = document.getElementById('authEmail').value.trim();
         const password = document.getElementById('authPassword').value;
-        const err = document.getElementById('authErrorMsg');
-        const submitBtn = document.getElementById('authSubmitBtn');
-
-        if (!email || !password) {
-            err.innerText = "Lütfen e-posta ve şifrenizi girin.";
-            err.classList.remove('hidden');
-            return;
-        }
-
-        err.classList.add('hidden');
-        submitBtn.innerText = "İşlem yapılıyor...";
-        submitBtn.disabled = true;
-
+        if(!email || !password) { errLabel.innerText="Email ve şifre gereklidir."; errLabel.classList.remove('hidden'); return; }
+        
+        const btn = document.getElementById('authSubmitBtn');
         try {
-            if (authMode === 'login') {
-                const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) throw error;
-            } else {
-                const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
-                let role = document.getElementById('regRole').value;
-                if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') {
-                    role = 'admin';
-                }
-                const { data, error } = await supabaseClient.auth.signUp({
-                    email, password,
-                    options: { data: { full_name: fullName, role: role } }
-                });
-                if (error) throw error;
-            }
-        } catch(e) {
-            err.innerText = "Hata: " + e.message;
-            err.classList.remove('hidden');
-            submitBtn.innerText = authMode === 'login' ? "Giriş Yap" : "Kullanıcı Oluştur ve Başla";
-            submitBtn.disabled = false;
+            btn.innerText = "Kaydediliyor..."; btn.disabled = true;
+            const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
+            let role = document.getElementById('regRole').value;
+            if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') { role = 'admin'; }
+
+            const { data, error } = await supabaseClient.auth.signUp({ 
+                email, password, options: { data: { full_name: fullName, role: role } } 
+            });
+            if (error) throw error;
+            errLabel.innerText = "Kayıt başarılı! Lütfen giriş yapın.";
+            errLabel.classList.remove('hidden', 'text-rose-500'); errLabel.classList.add('text-emerald-600');
+            switchAuthTab('login');
+        } catch (e) {
+            errLabel.classList.remove('hidden', 'text-emerald-600'); errLabel.classList.add('text-rose-500');
+            errLabel.innerText = "Kayıt hatası: " + e.message;
+        } finally {
+            btn.innerText = "Yeni Hesap Oluştur"; btn.disabled = false;
+        }
+    }
+
+    async function handleLogin() {
+        const errLabel = document.getElementById('authErrorMsg');
+        errLabel.classList.add('hidden');
+        if(!supabaseClient) { errLabel.innerText="Veritabanı bağlantısı yok."; errLabel.classList.remove('hidden'); return; }
+        
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value;
+        if(!email || !password) { errLabel.innerText="Email ve şifre gereklidir."; errLabel.classList.remove('hidden'); return; }
+        
+        const btn = document.getElementById('authSubmitBtn');
+        try {
+            btn.innerText = "Bağlanıyor..."; btn.disabled = true;
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+        } catch (e) {
+            errLabel.classList.remove('hidden', 'text-emerald-600'); errLabel.classList.add('text-rose-500');
+            errLabel.innerText = "Giriş hatası: " + e.message;
+        } finally {
+            btn.innerText = "Giriş Yap"; btn.disabled = false;
         }
     }
 
@@ -538,7 +566,6 @@
     function applyRolePermissions() {
         const role = currentUserProfile.role || 'sales';
         const roleBadge = document.getElementById('userRoleBadge');
-        
         const btnSales = document.getElementById('btnSubmitSales');
         const btnLogistics = document.getElementById('btnSubmitLogistics');
         const dashBtn = document.getElementById('btnDashboard');
@@ -547,95 +574,71 @@
         document.getElementById('userProfileBadge').classList.add('flex');
         document.getElementById('userEmailLabel').innerText = currentUserProfile.full_name || currentUser.email;
 
-        btnSales.classList.add('hidden');
-        btnLogistics.classList.add('hidden');
-        dashBtn.classList.add('hidden');
+        btnSales.classList.add('hidden'); btnLogistics.classList.add('hidden'); dashBtn.classList.add('hidden');
 
         if (role === 'logistics') {
-            roleBadge.innerText = "LOJİSTİK & AR-GE";
-            roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-sky-600 text-white uppercase";
+            roleBadge.innerText = "LOJİSTİK & AR-GE"; roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-sky-600 text-white uppercase";
             btnLogistics.classList.remove('hidden'); btnLogistics.classList.add('flex');
             dashBtn.classList.remove('hidden'); dashBtn.classList.add('flex');
         } else if (role === 'admin') {
-            roleBadge.innerText = "YÖNETİCİ";
-            roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-indigo-600 text-white uppercase";
+            roleBadge.innerText = "YÖNETİCİ"; roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-indigo-600 text-white uppercase";
             dashBtn.classList.remove('hidden'); dashBtn.classList.add('flex');
         } else {
-            roleBadge.innerText = "SATIŞ EKİBİ";
-            roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-amber-600 text-white uppercase";
+            roleBadge.innerText = "SATIŞ EKİBİ"; roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[10px] bg-amber-600 text-white uppercase";
             btnSales.classList.remove('hidden'); btnSales.classList.add('flex');
         }
     }
 
-    async function handleLogout() {
-        if(supabaseClient) await supabaseClient.auth.signOut(); 
-        location.reload();
+    async function handleLogout() { if(supabaseClient) await supabaseClient.auth.signOut(); location.reload(); }
+
+    function getUIDataPayload() {
+        let mixedData = [];
+        document.querySelectorAll('.mixed-row').forEach(row => { mixedData.push({ skuIdx: row.querySelector('.mixed-sku').value, val: row.querySelector('.mixed-val').value }); });
+        return {
+            mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
+            maxWgt: document.getElementById('maxWgt').value, targetBoxes: document.getElementById('targetBoxes').value,
+            baseType: document.getElementById('baseType').value, specificBaseSize: document.getElementById('specificBaseSize').value,
+            optFrontCurve: document.getElementById('optFrontCurve').checked, optDoor: document.getElementById('optDoor').checked,
+            optAirbag: document.getElementById('optAirbag').checked, optLashing: document.getElementById('optLashing').checked,
+            singleSkuIdx: document.getElementById('skuSelect').value, mixedData: mixedData
+        };
     }
 
     async function saveSimulation(status) {
         if (!lastComputedResult) return showAlert("Lütfen önce simülasyonu çalıştırın.");
-
-        const btnSales = document.getElementById('btnSubmitSales');
-        const btnLogistics = document.getElementById('btnSubmitLogistics');
-        
+        const btnSales = document.getElementById('btnSubmitSales'); const btnLogistics = document.getElementById('btnSubmitLogistics');
         if (status === 'bekliyor') { btnSales.innerText = "Gönderiliyor..."; btnSales.disabled = true; } 
         else { btnLogistics.innerText = "Kaydediliyor..."; btnLogistics.disabled = true; }
 
-        let input_data = {
-            mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
-            baseType: document.getElementById('baseType').value, optFrontCurve: document.getElementById('optFrontCurve').checked,
-            optDoor: document.getElementById('optDoor').checked, optAirbag: document.getElementById('optAirbag').checked,
-            optLashing: document.getElementById('optLashing').checked
-        };
-        
-        if (currentMode === 'single') {
-            input_data.skuSelect = document.getElementById('skuSelect').value;
-            input_data.targetBoxes = document.getElementById('targetBoxes').value;
-        } else {
-            let rows = Array.from(document.querySelectorAll('.mixed-row'));
-            input_data.mixedRows = rows.map(r => ({
-                sku: r.querySelector('.mixed-sku').value, count: r.querySelector('.mixed-val').value
-            }));
-        }
-
+        let input_data = getUIDataPayload();
         const payload = {
             status: status, mode: currentMode, vehicle_type: document.getElementById('vehicleType').value, base_type: document.getElementById('baseType').value,
             total_boxes: lastComputedResult.totalBoxes, total_weight: lastComputedResult.totalWgt, total_loads: `${lastComputedResult.placedItems.length} İstif`,
             layout_data: { inputs: input_data, results: lastComputedResult.placedItems }
         };
 
-        if (currentUserProfile.role === 'sales') {
-            payload.sales_email = currentUser.email; payload.sales_name = currentUserProfile.full_name || 'Satış Temsilcisi';
-        } else {
-            payload.logistics_email = currentUser.email; payload.logistics_name = currentUserProfile.full_name || 'Lojistik Yetkilisi';
-        }
+        if (currentUserProfile.role === 'sales') { payload.sales_email = currentUser.email; payload.sales_name = currentUserProfile.full_name || 'Satış Temsilcisi'; } 
+        else { payload.logistics_email = currentUser.email; payload.logistics_name = currentUserProfile.full_name || 'Lojistik Yetkilisi'; }
 
         let dbError = null;
         if (currentSimulationId) { 
-            const { error } = await supabaseClient.from('simulations').update(payload).eq('id', currentSimulationId);
-            dbError = error;
+            const { error } = await supabaseClient.from('simulations').update(payload).eq('id', currentSimulationId); dbError = error;
         } else { 
-            const { error } = await supabaseClient.from('simulations').insert([payload]);
-            dbError = error;
+            const { error } = await supabaseClient.from('simulations').insert([payload]); dbError = error;
         }
 
         if (status === 'bekliyor') { btnSales.innerHTML = "↗ Lojistik Onayına Gönder"; btnSales.disabled = false; } 
         else { btnLogistics.innerHTML = "✓ Nihai Planı Onayla"; btnLogistics.disabled = false; }
 
-        if (dbError) {
-            alert("Kayıt hatası: " + dbError.message);
-        } else {
-            alert(status === 'bekliyor' ? "Talebiniz başarıyla Lojistik Onayına gönderildi!" : "✅ Yükleme planı başarıyla ONAYLANDI!");
-            currentSimulationId = null; 
-        }
+        if (dbError) { alert("Kayıt hatası: " + dbError.message); } 
+        else { alert(status === 'bekliyor' ? "Talebiniz başarıyla Lojistik Onayına gönderildi!" : "✅ Yükleme planı başarıyla ONAYLANDI!"); currentSimulationId = null; }
     }
 
     async function loadSimulationIntoEditor(id) {
         const { data, error } = await supabaseClient.from('simulations').select('*').eq('id', id).single();
         if (error || !data) return alert("Talep yüklenemedi.");
         
-        currentSimulationId = data.id; 
-        const inputs = data.layout_data.inputs;
+        currentSimulationId = data.id; const inputs = data.layout_data.inputs;
 
         switchTab(inputs.mode || 'mixed');
         document.getElementById('vehicleType').value = inputs.vehicleType;
@@ -653,28 +656,20 @@
             populateSKU();
         } else {
             document.getElementById('mixedList').innerHTML = ''; 
-            (inputs.mixedRows || []).forEach(row => { addMixedRowWithCount(parseInt(row.sku), parseInt(row.count)); });
+            (inputs.mixedData || []).forEach(row => { addMixedRowWithCount(parseInt(row.skuIdx), parseInt(row.val)); });
         }
 
         updateVehicleDims(); handleBaseChange(); debouncedRunEngine(); closeDashboard();
-        
-        if (currentUserProfile.role === 'admin') {
-            showAlert(`Yönetici Modu: Onaylanan plan incelenmek üzere ekrana yüklendi.\n\nÜst menüden 'Saha Formunu Yazdır' butonuna basarak PDF olarak kaydedebilirsiniz.`);
-        } else {
-            showAlert(`Talep yükleme motoruna aktarıldı.\n\nİstediğiniz değişiklikleri yapıp 'Nihai Planı Onayla' butonuna basarak süreci tamamlayabilirsiniz.`);
-        }
+        if (currentUserProfile.role === 'admin') showAlert(`Yönetici Modu: Onaylanan plan incelenmek üzere ekrana yüklendi.`);
+        else showAlert(`Talep yükleme motoruna aktarıldı. Nihai Planı Onayla butonuna basarak süreci tamamlayabilirsiniz.`);
     }
 
     async function openDashboard() {
         document.getElementById('adminDashboardModal').classList.remove('hidden');
-        const loading = document.getElementById('dashboardLoading');
-        const table = document.getElementById('dashboardTable');
-        const tbody = document.getElementById('dashboardTableBody');
-        
+        const loading = document.getElementById('dashboardLoading'); const table = document.getElementById('dashboardTable'); const tbody = document.getElementById('dashboardTableBody');
         loading.classList.remove('hidden'); table.classList.add('hidden'); tbody.innerHTML = '';
 
         const { data, error } = await supabaseClient.from('simulations').select('*').order('created_at', { ascending: false }).limit(30);
-        
         loading.classList.add('hidden'); table.classList.remove('hidden');
 
         if (data && data.length > 0) {
@@ -682,40 +677,22 @@
                 const dateStr = new Date(row.created_at).toLocaleString('tr-TR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
                 const salesRep = row.sales_name || row.sales_email || '-';
                 const logRep = row.logistics_name || row.logistics_email || '-';
-                const statusBadge = row.status === 'bekliyor' 
-                    ? '<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-black uppercase">Onay Bekliyor</span>' 
-                    : '<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase">Onaylandı</span>';
+                const statusBadge = row.status === 'bekliyor' ? '<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-black uppercase">Onay Bekliyor</span>' : '<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase">Onaylandı</span>';
 
                 let actionBtn = '';
-                if (row.status === 'bekliyor' && currentUserProfile.role === 'logistics') {
-                    actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">İncele / Yükle</button>`;
-                } else if (row.status === 'onaylandi' && (currentUserProfile.role === 'admin' || currentUserProfile.role === 'logistics')) {
-                    actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">🖨️ Aç & Yazdır</button>`;
-                } else if (row.status === 'bekliyor' && currentUserProfile.role === 'admin') {
-                    actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">Görüntüle</button>`;
-                } else {
-                    actionBtn = `<span class="text-slate-400 text-[10px] font-bold uppercase">Kayıtlı</span>`;
-                }
+                if (row.status === 'bekliyor' && currentUserProfile.role === 'logistics') actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">İncele / Yükle</button>`;
+                else if (row.status === 'onaylandi' && (currentUserProfile.role === 'admin' || currentUserProfile.role === 'logistics')) actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">🖨️ Aç & Yazdır</button>`;
+                else if (row.status === 'bekliyor' && currentUserProfile.role === 'admin') actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded shadow-sm text-[10px] uppercase transition">Görüntüle</button>`;
+                else actionBtn = `<span class="text-slate-400 text-[10px] font-bold uppercase">Kayıtlı</span>`;
 
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 transition border-b">
-                        <td class="p-3 text-slate-500 font-medium">${dateStr}</td>
-                        <td class="p-3">${statusBadge}</td>
-                        <td class="p-3 font-semibold text-slate-700">${salesRep}</td>
-                        <td class="p-3 font-semibold text-indigo-700">${logRep}</td>
-                        <td class="p-3 text-[11px]">
-                            <strong class="text-slate-800 block">${row.vehicle_type} (${row.base_type})</strong>
-                            <span class="text-slate-500">${row.total_boxes} Koli | ${row.total_weight} kg</span>
-                        </td>
-                        <td class="p-3 text-center">${actionBtn}</td>
-                    </tr>
-                `;
+                tbody.innerHTML += `<tr class="hover:bg-slate-50 transition border-b"><td class="p-3 text-slate-500 font-medium">${dateStr}</td><td class="p-3">${statusBadge}</td><td class="p-3 font-semibold text-slate-700">${salesRep}</td><td class="p-3 font-semibold text-indigo-700">${logRep}</td><td class="p-3 text-[11px]"><strong class="text-slate-800 block">${row.vehicle_type} (${row.base_type})</strong><span class="text-slate-500">${row.total_boxes} Koli | ${row.total_weight} kg</span></td><td class="p-3 text-center">${actionBtn}</td></tr>`;
             });
-        } else {
-            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-semibold">Henüz sisteme düşen bir kayıt yok.</td></tr>`;
-        }
+        } else { tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-semibold">Henüz sisteme düşen bir kayıt yok.</td></tr>`; }
     }
 
+    // ==========================================
+    // UI CONTROLS & EVENTS
+    // ==========================================
     function populateSelects() {
         const select = document.getElementById('skuSelect');
         select.innerHTML = "";
@@ -783,7 +760,6 @@
         
         let rowIndex = document.querySelectorAll('.mixed-row').length;
         let rCol = colorMap[rowIndex % colorMap.length].base;
-        
         let options = skuDatabase.map((s, i) => `<option value="${i}" ${i === prefillIdx ? 'selected' : ''}>${s.name}</option>`).join('');
         
         div.innerHTML = `
@@ -794,23 +770,13 @@
             <button onclick="if(document.querySelectorAll('.mixed-row').length>1){this.parentElement.remove(); reassignColors(); debouncedRunEngine();}" class="w-[10%] text-rose-500 font-bold px-2 py-1 hover:bg-rose-50 rounded">X</button>
         `;
         
-        div.addEventListener('dragstart', handleDragStart);
-        div.addEventListener('dragover', handleDragOver);
-        div.addEventListener('drop', handleDrop);
-        div.addEventListener('dragend', handleDragEnd);
-
-        document.getElementById('mixedList').appendChild(div);
-        reassignColors();
+        div.addEventListener('dragstart', handleDragStart); div.addEventListener('dragover', handleDragOver);
+        div.addEventListener('drop', handleDrop); div.addEventListener('dragend', handleDragEnd);
+        document.getElementById('mixedList').appendChild(div); reassignColors();
     }
 
     function addNewMixedRow() { addMixedRowWithCount(0, 100); debouncedRunEngine(); }
-
-    function handleDragStart(e) {
-        dragSrcEl = this;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', this.outerHTML);
-        this.classList.add('dragging');
-    }
+    function handleDragStart(e) { dragSrcEl = this; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/html', this.outerHTML); this.classList.add('dragging'); }
     function handleDragOver(e) { if (e.preventDefault) e.preventDefault(); e.dataTransfer.dropEffect = 'move'; return false; }
     function handleDrop(e) {
         if (e.stopPropagation) e.stopPropagation();
@@ -820,36 +786,24 @@
             let dropElem = this.previousSibling;
             dropElem.addEventListener('dragstart', handleDragStart); dropElem.addEventListener('dragover', handleDragOver);
             dropElem.addEventListener('drop', handleDrop); dropElem.addEventListener('dragend', handleDragEnd);
-            let oldSelectVal = dragSrcEl.querySelector('.mixed-sku').value;
-            let oldInputVal = dragSrcEl.querySelector('.mixed-val').value;
-            dropElem.querySelector('.mixed-sku').value = oldSelectVal;
-            dropElem.querySelector('.mixed-val').value = oldInputVal;
+            dropElem.querySelector('.mixed-sku').value = dragSrcEl.querySelector('.mixed-sku').value;
+            dropElem.querySelector('.mixed-val').value = dragSrcEl.querySelector('.mixed-val').value;
             reassignColors(); debouncedRunEngine();
         }
         return false;
     }
     function handleDragEnd(e) { this.classList.remove('dragging'); }
+    function reassignColors() { document.querySelectorAll('.mixed-row').forEach((row, idx) => { let tab = row.querySelector('.color-tab'); if(tab) tab.style.backgroundColor = colorMap[idx % colorMap.length].base; }); }
     
-    function reassignColors() {
-        document.querySelectorAll('.mixed-row').forEach((row, idx) => {
-            let rCol = colorMap[idx % colorMap.length].base;
-            let tab = row.querySelector('.color-tab');
-            if(tab) tab.style.backgroundColor = rCol; 
-        });
-    }
-
     function showDiagnostic(skuName, target, packed, reason) {
-        let content = `
+        document.getElementById('diagnosticContent').innerHTML = `
             <div class="bg-rose-50 p-4 rounded border border-rose-200">
                 <p class="font-bold text-slate-800 mb-2">Ürün: <span class="text-rose-600">${skuName}</span></p>
                 <p><strong>Hedeflenen Koli:</strong> ${target}</p>
                 <p><strong>Yüklenebilen Koli:</strong> ${packed}</p>
-                <p class="mt-3 text-rose-700 font-bold">Kısıtlama Sebebi:</p>
-                <p>${reason}</p>
+                <p class="mt-3 text-rose-700 font-bold">Kısıtlama Sebebi:</p><p>${reason}</p>
             </div>
-            <p class="text-xs text-slate-500 mt-2">İpucu: Bu ürünün miktarını artırmak istiyorsanız, yanındaki ☰ ikonundan sürükleyerek listede daha üst sıralara (önceliğe) taşıyın veya üstündeki ürünlerin miktarını azaltın.</p>
-        `;
-        document.getElementById('diagnosticContent').innerHTML = content;
+            <p class="text-xs text-slate-500 mt-2">İpucu: Bu ürünün miktarını artırmak istiyorsanız, yanındaki ☰ ikonundan sürükleyerek listede daha üst sıralara (önceliğe) taşıyın veya üstündeki ürünlerin miktarını azaltın.</p>`;
         openModal('diagnosticModal');
     }
 
@@ -859,7 +813,6 @@
     function initCanvasInteractions() {
         const canvas = document.getElementById('contCanvas');
         if(!canvas) return;
-        
         canvas.style.cursor = 'grab';
         
         canvas.addEventListener('mousedown', (e) => {
@@ -876,10 +829,8 @@
             if(lastRenderData) performRender(lastRenderData);
         });
 
-        window.addEventListener('mouseup', () => { 
-            isDraggingCanvas = false; 
-            if(canvas) canvas.style.cursor = 'grab'; 
-        });
+        window.addEventListener('mouseup', () => { isDraggingCanvas = false; if(canvas) canvas.style.cursor = 'grab'; });
+        window.addEventListener('mouseleave', () => { isDraggingCanvas = false; if(canvas) canvas.style.cursor = 'grab'; });
 
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
@@ -889,7 +840,7 @@
 
             const zoomFactor = 1.1;
             let newZoom = e.deltaY < 0 ? zoomLevel * zoomFactor : zoomLevel / zoomFactor;
-            newZoom = Math.max(0.3, Math.min(newZoom, 10)); // Restrict zoom range
+            newZoom = Math.max(0.3, Math.min(newZoom, 10));
 
             panX = mouseX - (mouseX - panX) * (newZoom / zoomLevel);
             panY = mouseY - (mouseY - panY) * (newZoom / zoomLevel);
@@ -899,13 +850,10 @@
         });
     }
 
-    function resetView() {
-        panX = 0; panY = 0; zoomLevel = 1;
-        if(lastRenderData) performRender(lastRenderData);
-    }
+    function resetView() { panX = 0; panY = 0; zoomLevel = 1; if(lastRenderData) performRender(lastRenderData); }
 
     // ==========================================
-    // CORE 3D ALGORITHM & PACKING
+    // CORE PACKING ENGINE
     // ==========================================
     function runEngine() {
         document.getElementById('mixedResultsTable').style.display = currentMode === 'mixed' ? 'block' : 'none';
@@ -1048,7 +996,7 @@
                             let blockL = actualBoxL;
                             
                             itemsToPack.push({
-                                id: sku.name, priority: idx, count: 1, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * sku.H, 
+                                id: sku.name, priority: idx, target: targetBoxes, count: 1, l: blockL, w: blockW, h: rowLayers * sku.H, 
                                 boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
                                 palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
                                 layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, boxOrientation: isRotated
@@ -1128,8 +1076,8 @@
                         item.wgt = (allowBoxes * item.boxWt) + baseTare; 
                         item.isPartial = true; 
                         item.rejectReason = "Araç toplam tonaj limiti (" + maxWgt + " kg) sınırına ulaşıldı.";
-                    } else { item.rejectReason = "Ağırlık limiti doldu."; continue; } 
-                } else { item.rejectReason = "Ağırlık limiti doldu."; continue; } 
+                    } else { continue; } 
+                } else { continue; } 
             }
 
             let bestNode = { rectIdx: -1, isRotated: false, score1: Infinity, score2: Infinity, x: -1, y: -1 };
@@ -1211,7 +1159,7 @@
             let bOffsetX = ((patL * scale) - (loadL * scale)) / 2;
             let bOffsetY = ((patW * scale) - (loadW * scale)) / 2;
             ctx.translate(bOffsetX, bOffsetY);
-            for(let r=0; r<1; r++){ // Just show one row depth for floor preview
+            for(let r=0; r<1; r++){ 
                 for(let c=0; c<item.layoutCols; c++){
                     ctx.fillStyle = item.colorSet.top;
                     ctx.fillRect(r * item.palletBlocks[0].l * scale, c * item.palletBlocks[0].w * scale, item.palletBlocks[0].l * scale - 1, item.palletBlocks[0].w * scale - 1);
@@ -1393,7 +1341,6 @@
         }, 50);
 
         // Reset view and draw 3D
-        panX = 0; panY = 0; zoomLevel = 1;
         lastRenderData = { placedItems: result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX };
         performRender(lastRenderData);
     }
