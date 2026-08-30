@@ -162,30 +162,36 @@
         </div>
 
         <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-            <div id="userProfileBadge" class="hidden items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs mr-2">
-                <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
-                <span id="userEmailLabel" class="text-slate-300 font-medium">user@example.com</span>
+            <div id="loggedOutView" class="flex gap-2">
+                <button onclick="openModal('authModal')" class="text-sm font-bold text-white hover:text-sky-300">Giriş Yap / Kaydol</button>
             </div>
 
-            <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
-                📥 Gelen Talepler
-            </button>
+            <div id="loggedInView" class="hidden flex items-center gap-2 flex-wrap">
+                <div id="userProfileBadge" class="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs mr-2">
+                    <span id="userRoleBadge" class="px-1.5 py-0.5 rounded font-black text-[10px] uppercase">Kullanıcı</span>
+                    <span id="userEmailLabel" class="text-slate-300 font-medium">user@mail.com</span>
+                </div>
 
-            <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
-                ↗ Lojistik Onayına Gönder
-            </button>
+                <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
+                    📥 Gelen Talepler
+                </button>
 
-            <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
-                ✓ Nihai Planı Onayla
-            </button>
+                <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                    ↗ Lojistik Onayına Gönder
+                </button>
 
-            <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-1.5">
-                Saha Formunu Yazdır
-            </button>
+                <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
+                    ✓ Nihai Planı Onayla
+                </button>
 
-            <button onclick="handleLogout()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 px-3 py-2 rounded-lg text-xs font-bold transition-all ml-2">
-                Çıkış
-            </button>
+                <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all flex items-center gap-1.5">
+                    Saha Formunu Yazdır
+                </button>
+
+                <button onclick="handleLogout()" class="bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/50 px-3 py-2 rounded-lg text-xs font-bold transition-all ml-2">
+                    Çıkış
+                </button>
+            </div>
         </div>
     </div>
 </nav>
@@ -237,15 +243,20 @@
                 <div class="input-group"><label>Dökme Katı (İstif)</label><input type="text" value="Zemine Yayılarak" readonly class="!bg-indigo-50 !text-indigo-700 font-bold border-indigo-200 text-[10px] text-center"></div>
             </div>
 
+            <div class="input-group mb-3 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg hidden" id="targetBoxesGroup">
+                <label class="!text-fuchsia-800 flex items-center justify-between"><span>Hedef Koli (İhtiyaç Kadar)</span></label>
+                <input type="number" id="targetBoxes" value="0" placeholder="0 = Tırı Tamamen Doldur" class="bg-white border-fuchsia-300" oninput="debouncedRunEngine()">
+            </div>
+
             <div class="section-header">Taşıma Tabanı</div>
             <div class="input-group mb-3">
                 <select id="baseType" onchange="handleBaseChange(); debouncedRunEngine();">
                     <option value="slipsheet">Slipsheet (Çekme)</option>
-                    <option value="pallet">Ahşap Palet</option>
-                    <option value="floor" selected>Dökme / Zemin Yükleme</option>
+                    <option value="pallet" selected>Ahşap Palet</option>
+                    <option value="floor">Dökme / Zemin Yükleme</option>
                 </select>
             </div>
-            <div id="palletDropdownGroup" class="input-group mb-3" style="display:none;">
+            <div id="palletDropdownGroup" class="input-group mb-3">
                 <select id="specificBaseSize" onchange="debouncedRunEngine()">
                     <option value="auto">🌟 Otomatik Seçim (En Verimli)</option>
                     <option value="0">80x120 cm Euro Palet</option>
@@ -276,10 +287,6 @@
             <div id="panel-single" class="block">
                 <div class="section-header">Tekil Ürün Modu</div>
                 <div class="input-group mb-3"><select id="skuSelect" onchange="populateSKU(); debouncedRunEngine();"></select></div>
-                <div class="input-group mb-3 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg">
-                    <label class="!text-fuchsia-800 flex items-center justify-between"><span>Hedef Koli (İhtiyaç Kadar)</span></label>
-                    <input type="number" id="targetBoxes" value="0" placeholder="0 = Tırı Tamamen Doldur" class="bg-white border-fuchsia-300" oninput="debouncedRunEngine()">
-                </div>
                 <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <div class="input-group"><label>Uzun (L)</label><input type="number" id="boxL" readonly class="bg-slate-100"></div>
                     <div class="input-group"><label>Geniş (W)</label><input type="number" id="boxW" readonly class="bg-slate-100"></div>
@@ -374,6 +381,20 @@
         }
         init();
     });
+
+    function handleAuthChange(user) {
+        currentUser = user;
+        if (user) {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('loggedOutView').classList.add('hidden');
+            document.getElementById('loggedInView').classList.remove('hidden');
+            loadUserProfile(user.id);
+        } else {
+            document.getElementById('authModal').classList.remove('hidden');
+            document.getElementById('loggedOutView').classList.remove('hidden');
+            document.getElementById('loggedInView').classList.add('hidden');
+        }
+    }
 
     // ==========================================
     // DATABASE & GLOBAL VARIABLES
@@ -628,7 +649,7 @@
         document.getElementById('optLashing').checked = inputs.optLashing || false;
 
         if (inputs.mode === 'single') {
-            document.getElementById('skuSelect').value = inputs.singleSkuIdx || 0;
+            document.getElementById('skuSelect').value = inputs.skuSelect;
             populateSKU();
         } else {
             document.getElementById('mixedList').innerHTML = ''; 
@@ -903,7 +924,7 @@
                             id: skuObj.name, priority: 0, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * skuObj.H, 
                             boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: skuObj.Wt, wgt: rowBoxCount * skuObj.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
                             palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Dökme İstif', colorSet: colorMap[0],
-                            layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, count: 1, isRotated: isRotated
+                            layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, count: 1, boxOrientation: isRotated
                         });
                     }
                 }
@@ -922,7 +943,7 @@
                             boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: skuObj.Wt, wgt: (b * skuObj.Wt) + (baseType==='pallet'?25:0), 
                             isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW,
                             palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, 
-                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0], count: 1, isRotated: pConfig.isRotated
+                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0], count: 1, boxOrientation: pConfig.isRotated
                         });
                     }
                 }
@@ -976,10 +997,10 @@
                             let blockL = actualBoxL;
                             
                             itemsToPack.push({
-                                id: sku.name, priority: idx, count: 1, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * sku.H, 
+                                id: sku.name, priority: idx, target: targetBoxes, count: 1, l: blockL, w: blockW, h: rowLayers * sku.H, 
                                 boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
                                 palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
-                                layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, isRotated: isRotated
+                                layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, boxOrientation: isRotated
                             });
                         }
                     }
@@ -989,7 +1010,7 @@
                         let pallets = Math.ceil(targetBoxes / pConfig.boxesPerLoad);
                         for(let k=0; k<pallets; k++) {
                             let b = Math.min(pConfig.boxesPerLoad, targetBoxes - (k*pConfig.boxesPerLoad));
-                            itemsToPack.push({ id: sku.name, priority: idx, target: targetBoxes, count: 1, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: sku.Wt, wgt: (b * sku.Wt) + (baseType==='pallet'?25:0), isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: rColorSet, isRotated: pConfig.isRotated });
+                            itemsToPack.push({ id: sku.name, priority: idx, target: targetBoxes, count: 1, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: sku.Wt, wgt: (b * sku.Wt) + (baseType==='pallet'?25:0), isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: rColorSet, boxOrientation: pConfig.isRotated });
                         }
                     }
                 }
@@ -1041,7 +1062,6 @@
         let queue = [];
         itemTypes.forEach((type) => { for(let i=0; i<Math.min(type.count, 5000); i++) queue.push({...type}); });
         
-        // Priority Top-to-Bottom
         queue.sort((a,b) => { if (a.priority !== b.priority) return a.priority - b.priority; return b.area - a.area; });
 
         for (let i = 0; i < queue.length; i++) {
@@ -1078,7 +1098,7 @@
             if (bestNode.rectIdx !== -1) {
                 let pL = bestNode.isRotated ? item.w : item.l; let pW = bestNode.isRotated ? item.l : item.w;
                 placedItems.push({ 
-                    x: bestNode.x, y: bestNode.y, z: 0, l: pL, w: pW, h: item.h, id: item.id, target: item.target, boxes: item.boxes, displayLayers: item.displayLayers, boxesPerUnit: item.boxesPerUnit, wgt: item.wgt, isPartial: item.isPartial, isRotated: bestNode.isRotated, palletBlocks: item.palletBlocks, actL: item.actL, actW: item.actW, verticalStacks: item.verticalStacks, patternName: item.patternName, colorSet: item.colorSet, priority: item.priority, layoutCols: item.layoutCols, layoutRows: item.layoutRows, layoutLayers: item.layoutLayers, rejectReason: item.rejectReason, boxOrientation: item.isRotated 
+                    x: bestNode.x, y: bestNode.y, z: 0, l: pL, w: pW, h: item.h, id: item.id, target: item.target, boxes: item.boxes, displayLayers: item.displayLayers, boxesPerUnit: item.boxesPerUnit, wgt: item.wgt, isPartial: item.isPartial, isRotated: bestNode.isRotated, palletBlocks: item.palletBlocks, actL: item.actL, actW: item.actW, verticalStacks: item.verticalStacks, patternName: item.patternName, colorSet: item.colorSet, priority: item.priority, layoutCols: item.layoutCols, layoutRows: item.layoutRows, layoutLayers: item.layoutLayers, rejectReason: item.rejectReason, boxOrientation: item.boxOrientation 
                 });
                 totalWgt += item.wgt; totalBoxes += item.boxes;
                 splitFreeRects(freeRects, bestNode.x, bestNode.y, pL, pW);
@@ -1139,7 +1159,7 @@
             let bOffsetX = ((patL * scale) - (loadL * scale)) / 2;
             let bOffsetY = ((patW * scale) - (loadW * scale)) / 2;
             ctx.translate(bOffsetX, bOffsetY);
-            for(let r=0; r<1; r++){ // Just show one row depth for floor preview
+            for(let r=0; r<1; r++){ 
                 for(let c=0; c<item.layoutCols; c++){
                     ctx.fillStyle = item.colorSet.top;
                     ctx.fillRect(r * item.palletBlocks[0].l * scale, c * item.palletBlocks[0].w * scale, item.palletBlocks[0].l * scale - 1, item.palletBlocks[0].w * scale - 1);
@@ -1178,7 +1198,6 @@
         document.getElementById('resTotalBoxes').innerText = result.totalBoxes.toLocaleString();
         document.getElementById('resWeight').innerText = `${result.totalWgt.toLocaleString(undefined, {maximumFractionDigits:1})} kg`;
         
-        // Ensure "İstif" count groups identical rows properly
         let trueLoadCount = 0;
         let lastLoadType = null;
         result.placedItems.forEach(p => { 
@@ -1321,12 +1340,12 @@
         drawIsometricMixedCanvas(result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX);
     }
 
-    // ==========================================
-    // 🚀 3D ISOMETRIC RENDERING ENGINE (PERFECT PROJECTION)
-    // ==========================================
     function drawIsometricMixedCanvas(placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX) {
         const canvas = document.getElementById('contCanvas'); 
         if(!canvas) return;
+        
+        canvas.width = canvas.parentElement.clientWidth || 900;
+        canvas.height = canvas.parentElement.clientHeight || 500;
         
         const ctx = canvas.getContext('2d'); 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1374,10 +1393,7 @@
         function project(px, py, pz) {
             let u = (px - py) * cosA;
             let v = (px + py) * sinA - pz;
-            return {
-                x: cx + (u - uCenter) * scale,
-                y: cy + (v - vCenter) * scale
-            };
+            return { x: cx + (u - uCenter) * scale, y: cy + (v - vCenter) * scale };
         }
 
         function drawPolygon(pts, color, strokeColor = 'rgba(0,0,0,0.15)') {
@@ -1386,7 +1402,6 @@
             ctx.closePath(); ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = strokeColor; ctx.stroke();
         }
 
-        // Draw Container Base & Walls
         let w0 = project(0, 0, 0); 
         let wX = project(drawL, 0, 0); 
         let wY = project(0, drawW, 0);
@@ -1394,19 +1409,17 @@
         let wXZ = project(drawL, 0, drawH); 
         let wYZ = project(0, drawW, drawH);
         
-        drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155'); // Floor
-        drawPolygon([w0, wX, wXZ, wZ], '#1e293b'); // Back Left Wall
-        drawPolygon([w0, wY, wYZ, wZ], '#0f172a'); // Back Right Wall
+        drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155'); 
+        drawPolygon([w0, wX, wXZ, wZ], '#1e293b'); 
+        drawPolygon([w0, wY, wYZ, wZ], '#0f172a'); 
         
         if (optFrontCurve) {
             let b0 = project(0,0,0); let bX = project(100,0,0); let bY = project(0,drawW,0); let bXY = project(100,drawW,0);
             drawPolygon([b0, bX, bXY, bY], 'rgba(234, 179, 8, 0.4)');
         }
 
-        // Depth Sorting (Back-to-front rendering)
         blocks3D.sort((a,b) => (a.x + a.y + a.z) - (b.x + b.y + b.z));
 
-        // Draw Cargo Blocks
         blocks3D.forEach(b => {
             let p0 = project(b.x, b.y, b.z);
             let px = project(b.x + b.l, b.y, b.z);
@@ -1417,9 +1430,9 @@
             let pyz = project(b.x, b.y + b.w, b.z + b.h);
             let pxyz = project(b.x + b.l, b.y + b.w, b.z + b.h);
 
-            drawPolygon([px, pxy, pxyz, pxz], b.cRight); // Right Face
-            drawPolygon([py, pxy, pxyz, pyz], b.cLeft);  // Left Face
-            drawPolygon([p0z, pxz, pxyz, pyz], b.cTop);  // Top Face
+            drawPolygon([px, pxy, pxyz, pxz], b.cRight); 
+            drawPolygon([py, pxy, pxyz, pyz], b.cLeft);  
+            drawPolygon([p0z, pxz, pxyz, pyz], b.cTop);  
 
             let centerTop = project(b.x + b.l/2, b.y + b.w/2, b.z + b.h);
             ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
@@ -1427,7 +1440,6 @@
             ctx.fillText(b.label, centerTop.x, centerTop.y);
         });
 
-        // Center of Gravity Target (CoG)
         if (placedItems.length > 0) {
             let cogPt = project(cogX, offsetY + totalLoadW/2, drawH/2); 
             ctx.beginPath(); ctx.arc(cogPt.x, cogPt.y, 7, 0, 2*Math.PI);
@@ -1436,7 +1448,6 @@
             ctx.fillStyle = '#ffffff'; ctx.font = 'bold 8px Inter'; ctx.fillText('⌖ CoG', cogPt.x, cogPt.y - 10);
         }
 
-        // Front Door & Lashing
         if (useLashing && placedItems.length > 0 && drawL - totalLoadL > 200) {
             let lashX = totalLoadL + (optFrontCurve ? 100 : 0);
             let l0 = project(lashX, 0, 0); let lY = project(lashX, drawW, 0);
