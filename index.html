@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elita OptiLoad | 3D Lojistik Planlayıcı</title>
+    <title>Elita OptiLoad | Akıllı Saha & Yükleme Planlayıcısı</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase JS Library -->
@@ -16,7 +16,7 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .input-group label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 0.25rem; display: block; }
-        .input-group input[type="number"], .input-group select, .input-group input[type="text"] { width: 100%; padding: 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.875rem; background-color: #f8fafc; transition: all 0.2s; }
+        .input-group input[type="number"], .input-group select, .input-group input[type="text"], .input-group input[type="password"] { width: 100%; padding: 0.6rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.875rem; background-color: #f8fafc; transition: all 0.2s; }
         .input-group input:focus, .input-group select:focus { outline: none; border-color: #0284c7; background-color: #ffffff; box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1); }
         .section-header { font-size: 0.85rem; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.4rem; margin-top: 1.5rem; margin-bottom: 1rem; }
         .tab-btn { padding: 0.75rem 1.5rem; font-weight: 600; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s; }
@@ -39,7 +39,7 @@
     
     <script>
         // ==========================================
-        // SUPABASE CONNECTION (OFFLINE SAFE MODE)
+        // SUPABASE CONNECTION (CONNECTED)
         // ==========================================
         const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
@@ -47,7 +47,7 @@
         let supabase = null;
         let currentUser = null;
 
-        if (SUPABASE_URL !== 'PASTE_YOUR_SUPABASE_URL_HERE' && SUPABASE_URL.startsWith('http')) {
+        if (window.supabase) {
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         }
     </script>
@@ -268,102 +268,6 @@
 
 <script>
     // ==========================================
-    // AUTH & SUPABASE CLOUD SYNC LOGIC
-    // ==========================================
-    function handleAuthChange(user) {
-        currentUser = user;
-        if (user) {
-            document.getElementById('loggedOutView').classList.add('hidden');
-            document.getElementById('loggedInView').classList.remove('hidden');
-            document.getElementById('userEmailDisplay').innerText = user.email;
-            closeModal('authModal');
-        } else {
-            document.getElementById('loggedOutView').classList.remove('hidden');
-            document.getElementById('loggedInView').classList.add('hidden');
-        }
-    }
-
-    async function handleRegister() {
-        if(!supabase) return alert("Hata: Veritabanına bağlanılamadı. Lütfen sayfayı yenileyin.");
-        const email = document.getElementById('authEmail').value;
-        const password = document.getElementById('authPassword').value;
-        if(!email || !password) return alert("Email ve şifre gereklidir.");
-        const { data, error } = await supabase.auth.signUp({ email, password });
-        if (error) alert("Kayıt hatası: " + error.message);
-        else alert("Kayıt başarılı! Lütfen giriş yapın.");
-    }
-
-    async function handleLogin() {
-        if(!supabase) return alert("Hata: Veritabanına bağlanılamadı. Lütfen sayfayı yenileyin.");
-        const email = document.getElementById('authEmail').value;
-        const password = document.getElementById('authPassword').value;
-        if(!email || !password) return alert("Email ve şifre gereklidir.");
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) alert("Giriş hatası: " + error.message);
-    }
-
-    async function handleLogout() { if(supabase) await supabase.auth.signOut(); }
-
-    function getUIDataPayload() {
-        let mixedData = [];
-        document.querySelectorAll('.mixed-row').forEach(row => {
-            mixedData.push({ skuIdx: row.querySelector('.mixed-sku').value, val: row.querySelector('.mixed-val').value });
-        });
-
-        return {
-            mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
-            maxWgt: document.getElementById('maxWgt').value, targetBoxes: document.getElementById('targetBoxes').value,
-            baseType: document.getElementById('baseType').value, specificBaseSize: document.getElementById('specificBaseSize').value,
-            optFrontCurve: document.getElementById('optFrontCurve').checked, optDoor: document.getElementById('optDoor').checked,
-            singleSkuIdx: document.getElementById('skuSelect').value, mixedData: mixedData
-        };
-    }
-
-    async function saveCurrentPlan() {
-        if (!currentUser) return alert("Lütfen önce giriş yapın.");
-        const planName = document.getElementById('planNameInput').value || "İsimsiz Plan";
-        const { data, error } = await supabase.from('saved_plans').insert([{ user_id: currentUser.id, plan_name: planName, plan_data: getUIDataPayload() }]);
-        if (error) alert("Plan kaydedilemedi: " + error.message);
-        else { alert("Plan başarıyla kaydedildi!"); closeModal('savePlanModal'); document.getElementById('planNameInput').value = ""; }
-    }
-
-    async function fetchSavedPlans() {
-        if (!currentUser) return;
-        const listDiv = document.getElementById('savedPlansList');
-        listDiv.innerHTML = "<p class='text-xs text-slate-500'>Yükleniyor...</p>";
-        const { data: plans, error } = await supabase.from('saved_plans').select('*').order('created_at', { ascending: false });
-        if (error) { listDiv.innerHTML = "<p class='text-xs text-rose-500'>Hata oluştu.</p>"; return; }
-        if (plans.length === 0) { listDiv.innerHTML = "<p class='text-xs text-slate-500'>Kayıtlı planınız bulunmamaktadır.</p>"; return; }
-
-        listDiv.innerHTML = "";
-        plans.forEach(plan => {
-            const date = new Date(plan.created_at).toLocaleDateString('tr-TR');
-            const modeName = plan.plan_data.mode === 'single' ? '📦 Tekil' : '🔀 Karma';
-            listDiv.innerHTML += `
-                <div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-sky-50 transition cursor-pointer" onclick='loadPlanData(${JSON.stringify(plan.plan_data)})'>
-                    <div><div class="text-sm font-bold text-slate-800">${plan.plan_name}</div><div class="text-[10px] font-semibold text-slate-500">${modeName} • ${date} • Araç: ${plan.plan_data.vehicleType}</div></div>
-                    <button class="bg-sky-600 text-white px-3 py-1.5 rounded text-xs font-bold">Yükle</button>
-                </div>
-            `;
-        });
-    }
-
-    function loadPlanData(data) {
-        switchTab(data.mode);
-        document.getElementById('vehicleType').value = data.vehicleType; document.getElementById('maxWgt').value = data.maxWgt;
-        document.getElementById('targetBoxes').value = data.targetBoxes; document.getElementById('baseType').value = data.baseType;
-        document.getElementById('specificBaseSize').value = data.specificBaseSize; document.getElementById('optFrontCurve').checked = data.optFrontCurve;
-        document.getElementById('optDoor').checked = data.optDoor; document.getElementById('skuSelect').value = data.singleSkuIdx;
-
-        if (data.mode === 'mixed') {
-            document.getElementById('mixedList').innerHTML = "";
-            data.mixedData.forEach(item => { addMixedRowWithCount(parseInt(item.skuIdx), parseInt(item.val)); });
-        }
-        
-        updateVehicleDims(); handleBaseChange(); debouncedRunEngine(); closeModal('loadPlanModal');
-    }
-
-    // ==========================================
     // DATABASE & GLOBAL VARIABLES
     // ==========================================
     const skuDatabase = [
@@ -432,6 +336,115 @@
         debouncedRunEngine(); 
     }
 
+    // --- SUPABASE AUTH EVENTS ---
+    if (supabase) {
+        supabase.auth.getSession().then(({ data: { session } }) => { if (session) handleAuthChange(session.user); });
+        supabase.auth.onAuthStateChange((_event, session) => { handleAuthChange(session?.user || null); });
+    }
+
+    function handleAuthChange(user) {
+        currentUser = user;
+        if (user) {
+            document.getElementById('loggedOutView').classList.add('hidden');
+            document.getElementById('loggedInView').classList.remove('hidden');
+            document.getElementById('userEmailDisplay').innerText = user.email;
+            closeModal('authModal');
+        } else {
+            document.getElementById('loggedOutView').classList.remove('hidden');
+            document.getElementById('loggedInView').classList.add('hidden');
+        }
+    }
+
+    async function handleRegister() {
+        if(!supabase) return alert("Hata: Veritabanına bağlanılamadı. Lütfen sayfayı yenileyin.");
+        const email = document.getElementById('authEmail').value;
+        const password = document.getElementById('authPassword').value;
+        if(!email || !password) return alert("Email ve şifre gereklidir.");
+        const btn = document.getElementById('registerBtn');
+        btn.innerText = "Kaydediliyor...";
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        btn.innerText = "Yeni Hesap Oluştur";
+        if (error) alert("Kayıt hatası: " + error.message);
+        else alert("Kayıt başarılı! Lütfen giriş yapın.");
+    }
+
+    async function handleLogin() {
+        if(!supabase) return alert("Hata: Veritabanına bağlanılamadı. Lütfen sayfayı yenileyin.");
+        const email = document.getElementById('authEmail').value;
+        const password = document.getElementById('authPassword').value;
+        if(!email || !password) return alert("Email ve şifre gereklidir.");
+        
+        const btn = document.getElementById('loginBtn');
+        btn.innerText = "Bağlanıyor...";
+        
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        btn.innerText = "Giriş Yap";
+        if (error) alert("Giriş hatası: " + error.message);
+    }
+
+    async function handleLogout() { if(supabase) await supabase.auth.signOut(); }
+
+    function getUIDataPayload() {
+        let mixedData = [];
+        document.querySelectorAll('.mixed-row').forEach(row => {
+            mixedData.push({ skuIdx: row.querySelector('.mixed-sku').value, val: row.querySelector('.mixed-val').value });
+        });
+
+        return {
+            mode: currentMode, vehicleType: document.getElementById('vehicleType').value,
+            maxWgt: document.getElementById('maxWgt').value, targetBoxes: document.getElementById('targetBoxes').value,
+            baseType: document.getElementById('baseType').value, specificBaseSize: document.getElementById('specificBaseSize').value,
+            optFrontCurve: document.getElementById('optFrontCurve').checked, optDoor: document.getElementById('optDoor').checked,
+            singleSkuIdx: document.getElementById('skuSelect').value, mixedData: mixedData
+        };
+    }
+
+    async function saveCurrentPlan() {
+        if (!currentUser) return alert("Lütfen önce giriş yapın.");
+        const planName = document.getElementById('planNameInput').value || "İsimsiz Plan";
+        const { data, error } = await supabase.from('saved_plans').insert([{ user_id: currentUser.id, plan_name: planName, plan_data: getUIDataPayload() }]);
+        if (error) alert("Plan kaydedilemedi: " + error.message);
+        else { alert("Plan başarıyla kaydedildi!"); closeModal('savePlanModal'); document.getElementById('planNameInput').value = ""; }
+    }
+
+    async function fetchSavedPlans() {
+        if (!currentUser) return;
+        const listDiv = document.getElementById('savedPlansList');
+        listDiv.innerHTML = "<p class='text-xs text-slate-500'>Yükleniyor...</p>";
+        const { data: plans, error } = await supabase.from('saved_plans').select('*').order('created_at', { ascending: false });
+        if (error) { listDiv.innerHTML = "<p class='text-xs text-rose-500'>Hata oluştu.</p>"; return; }
+        if (plans.length === 0) { listDiv.innerHTML = "<p class='text-xs text-slate-500'>Kayıtlı planınız bulunmamaktadır.</p>"; return; }
+
+        listDiv.innerHTML = "";
+        plans.forEach(plan => {
+            const date = new Date(plan.created_at).toLocaleDateString('tr-TR');
+            const modeName = plan.plan_data.mode === 'single' ? '📦 Tekil' : '🔀 Karma';
+            listDiv.innerHTML += `
+                <div class="flex justify-between items-center p-3 bg-slate-50 border border-slate-200 rounded-lg hover:bg-sky-50 transition cursor-pointer" onclick='loadPlanData(${JSON.stringify(plan.plan_data)})'>
+                    <div><div class="text-sm font-bold text-slate-800">${plan.plan_name}</div><div class="text-[10px] font-semibold text-slate-500">${modeName} • ${date} • Araç: ${plan.plan_data.vehicleType}</div></div>
+                    <button class="bg-sky-600 text-white px-3 py-1.5 rounded text-xs font-bold">Yükle</button>
+                </div>
+            `;
+        });
+    }
+
+    function loadPlanData(data) {
+        switchTab(data.mode);
+        document.getElementById('vehicleType').value = data.vehicleType; document.getElementById('maxWgt').value = data.maxWgt;
+        document.getElementById('targetBoxes').value = data.targetBoxes; document.getElementById('baseType').value = data.baseType;
+        document.getElementById('specificBaseSize').value = data.specificBaseSize; document.getElementById('optFrontCurve').checked = data.optFrontCurve;
+        document.getElementById('optDoor').checked = data.optDoor; document.getElementById('skuSelect').value = data.singleSkuIdx;
+
+        if (data.mode === 'mixed') {
+            document.getElementById('mixedList').innerHTML = "";
+            data.mixedData.forEach(item => { addMixedRowWithCount(parseInt(item.skuIdx), parseInt(item.val)); });
+        }
+        
+        updateVehicleDims(); handleBaseChange(); debouncedRunEngine(); closeModal('loadPlanModal');
+    }
+
+    // --- DOM POPULATORS ---
     function populateSelects() {
         const select = document.getElementById('skuSelect');
         select.innerHTML = "";
@@ -540,7 +553,7 @@
             let dropElem = this.previousSibling;
             dropElem.addEventListener('dragstart', handleDragStart); dropElem.addEventListener('dragover', handleDragOver);
             dropElem.addEventListener('drop', handleDrop); dropElem.addEventListener('dragend', handleDragEnd);
-            // Restore values properly (since innerHTML drops live input values)
+            // Restore values properly
             let oldSelectVal = dragSrcEl.querySelector('.mixed-sku').value;
             let oldInputVal = dragSrcEl.querySelector('.mixed-val').value;
             dropElem.querySelector('.mixed-sku').value = oldSelectVal;
@@ -617,7 +630,6 @@
                 let maxBoxesByVol = floorFit * physMaxLayers;
                 let realisticTarget = targetBoxes > 0 ? Math.min(targetBoxes, maxBoxesByWgt, maxBoxesByVol) : Math.min(maxBoxesByVol, maxBoxesByWgt);
                 
-                // MÜKEMMEL TABANA YAYMA (Uzunluğu Maksimize Et)
                 let minLayersNeeded = Math.ceil(realisticTarget / floorFit);
                 let activeMaxLayers = Math.min(physMaxLayers, Math.max(1, minLayersNeeded));
 
@@ -721,7 +733,7 @@
                             itemsToPack.push({
                                 id: sku.name, priority: idx, count: 1, l: blockL, w: blockW, h: sku.H, 
                                 boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
-                                palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', color: rColorSet.base, colorSet: rColorSet,
+                                palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
                                 layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers
                             });
                         }
@@ -732,7 +744,7 @@
                         let pallets = Math.ceil(targetBoxes / pConfig.boxesPerLoad);
                         for(let k=0; k<pallets; k++) {
                             let b = Math.min(pConfig.boxesPerLoad, targetBoxes - (k*pConfig.boxesPerLoad));
-                            itemsToPack.push({ id: sku.name, priority: idx, target: targetBoxes, count: 1, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: sku.Wt, wgt: (b * sku.Wt) + (baseType==='pallet'?25:0), isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, color: rColorSet.base, colorSet: rColorSet });
+                            itemsToPack.push({ id: sku.name, priority: idx, target: targetBoxes, count: 1, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: sku.Wt, wgt: (b * sku.Wt) + (baseType==='pallet'?25:0), isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: rColorSet });
                         }
                     }
                 }
@@ -1149,7 +1161,8 @@
         }
     }
 
-    window.onload = function() { init(); };
+    // Delay start safely after fonts & styles load
+    window.addEventListener('load', () => { init(); });
 </script>
 
 </body>
