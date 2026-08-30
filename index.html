@@ -152,12 +152,12 @@
 
 <!-- TOP NAVIGATION BAR -->
 <nav class="bg-slate-900 text-white shadow-md rounded-t-xl md:rounded-xl mx-auto max-w-[1400px] w-full z-10 relative no-print mb-4">
-    <div class="px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-3">
-        <div class="flex items-center gap-3">
+    <div class="px-4 md:px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
+        <div class="flex items-center gap-3 w-full md:w-auto">
             <div class="w-8 h-8 bg-sky-500 rounded flex items-center justify-center font-black text-xl tracking-tighter">E</div>
             <div>
-                <h1 class="text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">3D OptiLoad</span></h1>
-                <p class="text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Gelişmiş Fizik & 3D Yükleme Simülatörü</p>
+                <h1 class="text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">OptiLoad</span></h1>
+                <p class="text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Dinamik & Statik Saha Operasyon Planlayıcısı</p>
             </div>
         </div>
 
@@ -167,17 +167,14 @@
                 <span id="userEmailLabel" class="text-slate-300 font-medium">user@example.com</span>
             </div>
 
-            <!-- Dashboard Button -->
             <button id="btnDashboard" onclick="openDashboard()" class="hidden bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
                 📥 Gelen Talepler
             </button>
 
-            <!-- Sales Submission Button -->
             <button id="btnSubmitSales" onclick="saveSimulation('bekliyor')" class="hidden bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
                 ↗ Lojistik Onayına Gönder
             </button>
 
-            <!-- Logistics Approval Button -->
             <button id="btnSubmitLogistics" onclick="saveSimulation('onaylandi')" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg transition-all items-center gap-1.5">
                 ✓ Nihai Planı Onayla
             </button>
@@ -244,11 +241,11 @@
             <div class="input-group mb-3">
                 <select id="baseType" onchange="handleBaseChange(); debouncedRunEngine();">
                     <option value="slipsheet">Slipsheet (Çekme)</option>
-                    <option value="pallet" selected>Ahşap Palet</option>
-                    <option value="floor">Dökme / Zemin Yükleme</option>
+                    <option value="pallet">Ahşap Palet</option>
+                    <option value="floor" selected>Dökme / Zemin Yükleme</option>
                 </select>
             </div>
-            <div id="palletDropdownGroup" class="input-group mb-3">
+            <div id="palletDropdownGroup" class="input-group mb-3" style="display:none;">
                 <select id="specificBaseSize" onchange="debouncedRunEngine()">
                     <option value="auto">🌟 Otomatik Seçim (En Verimli)</option>
                     <option value="0">80x120 cm Euro Palet</option>
@@ -445,17 +442,6 @@
         updateVehicleDims();
         handleBaseChange();
         debouncedRunEngine(); 
-    }
-
-    // --- SUPABASE AUTH EVENTS ---
-    function handleAuthChange(user) {
-        currentUser = user;
-        if (user) {
-            document.getElementById('authModal').classList.add('hidden');
-            loadUserProfile(user.id);
-        } else {
-            document.getElementById('authModal').classList.remove('hidden');
-        }
     }
 
     function switchAuthTab(mode) {
@@ -917,7 +903,7 @@
                             id: skuObj.name, priority: 0, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * skuObj.H, 
                             boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: skuObj.Wt, wgt: rowBoxCount * skuObj.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
                             palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Dökme İstif', colorSet: colorMap[0],
-                            layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, count: 1
+                            layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, count: 1, isRotated: isRotated
                         });
                     }
                 }
@@ -936,7 +922,7 @@
                             boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: skuObj.Wt, wgt: (b * skuObj.Wt) + (baseType==='pallet'?25:0), 
                             isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW,
                             palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, 
-                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0], count: 1
+                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0], count: 1, isRotated: pConfig.isRotated
                         });
                     }
                 }
@@ -990,10 +976,10 @@
                             let blockL = actualBoxL;
                             
                             itemsToPack.push({
-                                id: sku.name, priority: idx, target: targetBoxes, count: 1, l: blockL, w: blockW, h: rowLayers * sku.H, 
+                                id: sku.name, priority: idx, count: 1, target: targetBoxes, l: blockL, w: blockW, h: rowLayers * sku.H, 
                                 boxes: rowBoxCount, displayLayers: rowLayers, boxesPerUnit: rowBoxCount, boxWt: sku.Wt, wgt: rowBoxCount * sku.Wt, isPartial: rowBoxCount < (cols * physMaxLayers), area: blockL * blockW,
                                 palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: blockL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
-                                layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers
+                                layoutCols: cols, layoutRows: maxRows, layoutLayers: activeMaxLayers, isRotated: isRotated
                             });
                         }
                     }
@@ -1003,7 +989,7 @@
                         let pallets = Math.ceil(targetBoxes / pConfig.boxesPerLoad);
                         for(let k=0; k<pallets; k++) {
                             let b = Math.min(pConfig.boxesPerLoad, targetBoxes - (k*pConfig.boxesPerLoad));
-                            itemsToPack.push({ id: sku.name, priority: idx, target: targetBoxes, count: 1, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: sku.Wt, wgt: (b * sku.Wt) + (baseType==='pallet'?25:0), isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: rColorSet });
+                            itemsToPack.push({ id: sku.name, priority: idx, target: targetBoxes, count: 1, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: sku.Wt, wgt: (b * sku.Wt) + (baseType==='pallet'?25:0), isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: rColorSet, isRotated: pConfig.isRotated });
                         }
                     }
                 }
@@ -1039,7 +1025,8 @@
                         actL: isStraight ? c1*box.L : c2*box.W, actW: isStraight ? r1*box.W : r2*box.L,
                         palletBlocks: isStraight ? [{x:0, y:0, l:box.L, w:box.W, cols:c1, rows:r1}] : [{x:0, y:0, l:box.W, w:box.L, cols:c2, rows:r2}], 
                         boxPatternName: isStraight ? 'Düz Dizilim' : 'Döndürülmüş Dizilim',
-                        totalHeight: (maxL * box.H) + (baseType==='pallet'?150:0)
+                        totalHeight: (maxL * box.H) + (baseType==='pallet'?150:0),
+                        isRotated: !isStraight
                     };
                 }
             }
@@ -1054,6 +1041,7 @@
         let queue = [];
         itemTypes.forEach((type) => { for(let i=0; i<Math.min(type.count, 5000); i++) queue.push({...type}); });
         
+        // Priority Top-to-Bottom
         queue.sort((a,b) => { if (a.priority !== b.priority) return a.priority - b.priority; return b.area - a.area; });
 
         for (let i = 0; i < queue.length; i++) {
@@ -1068,8 +1056,8 @@
                         item.wgt = (allowBoxes * item.boxWt) + baseTare; 
                         item.isPartial = true; 
                         item.rejectReason = "Araç toplam tonaj limiti (" + maxWgt + " kg) sınırına ulaşıldı.";
-                    } else { continue; } // NO BREAK HERE
-                } else { continue; } // NO BREAK HERE
+                    } else { continue; } 
+                } else { continue; } 
             }
 
             let bestNode = { rectIdx: -1, isRotated: false, score1: Infinity, score2: Infinity, x: -1, y: -1 };
@@ -1090,7 +1078,7 @@
             if (bestNode.rectIdx !== -1) {
                 let pL = bestNode.isRotated ? item.w : item.l; let pW = bestNode.isRotated ? item.l : item.w;
                 placedItems.push({ 
-                    x: bestNode.x, y: bestNode.y, z: 0, l: pL, w: pW, h: item.h, id: item.id, target: item.target, boxes: item.boxes, displayLayers: item.displayLayers, boxesPerUnit: item.boxesPerUnit, wgt: item.wgt, isPartial: item.isPartial, isRotated: bestNode.isRotated, palletBlocks: item.palletBlocks, actL: item.actL, actW: item.actW, verticalStacks: item.verticalStacks, patternName: item.patternName, colorSet: item.colorSet, priority: item.priority, layoutCols: item.layoutCols, layoutRows: item.layoutRows, layoutLayers: item.layoutLayers, rejectReason: item.rejectReason 
+                    x: bestNode.x, y: bestNode.y, z: 0, l: pL, w: pW, h: item.h, id: item.id, target: item.target, boxes: item.boxes, displayLayers: item.displayLayers, boxesPerUnit: item.boxesPerUnit, wgt: item.wgt, isPartial: item.isPartial, isRotated: bestNode.isRotated, palletBlocks: item.palletBlocks, actL: item.actL, actW: item.actW, verticalStacks: item.verticalStacks, patternName: item.patternName, colorSet: item.colorSet, priority: item.priority, layoutCols: item.layoutCols, layoutRows: item.layoutRows, layoutLayers: item.layoutLayers, rejectReason: item.rejectReason, boxOrientation: item.isRotated 
                 });
                 totalWgt += item.wgt; totalBoxes += item.boxes;
                 splitFreeRects(freeRects, bestNode.x, bestNode.y, pL, pW);
@@ -1189,7 +1177,15 @@
         document.getElementById('layerOptimizationInfo').style.display = 'block'; 
         document.getElementById('resTotalBoxes').innerText = result.totalBoxes.toLocaleString();
         document.getElementById('resWeight').innerText = `${result.totalWgt.toLocaleString(undefined, {maximumFractionDigits:1})} kg`;
-        document.getElementById('resLoads').innerText = `${result.placedItems.length} İstif`;
+        
+        // Ensure "İstif" count groups identical rows properly
+        let trueLoadCount = 0;
+        let lastLoadType = null;
+        result.placedItems.forEach(p => { 
+            let hash = p.id + p.boxes;
+            if (hash !== lastLoadType) { trueLoadCount++; lastLoadType = hash; }
+        });
+        document.getElementById('resLoads').innerText = `${trueLoadCount} İstif`;
         
         let momentX = 0, momentY = 0;
         result.placedItems.forEach(p => { momentX += (p.x + p.l/2) * p.wgt; momentY += (p.y + p.w/2) * p.wgt; });
@@ -1203,7 +1199,7 @@
         result.placedItems.forEach(p => {
             let gKey = p.id; 
             if(!tableGroups[gKey]) {
-                tableGroups[gKey] = { boxes: 0, items: 0, partials: 0, target: p.target, reason: p.rejectReason, patternName: p.patternName, boxesPerUnit: p.boxesPerUnit, colorSet: p.colorSet, priority: p.priority, layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers };
+                tableGroups[gKey] = { boxes: 0, items: 0, partials: 0, target: p.target, reason: p.rejectReason, patternName: p.patternName, boxesPerUnit: p.boxesPerUnit, colorSet: p.colorSet, priority: p.priority, layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers, boxOrientation: p.boxOrientation };
             }
             tableGroups[gKey].boxes += p.boxes; tableGroups[gKey].items++;
             if(p.isPartial) { tableGroups[gKey].partials++; tableGroups[gKey].reason = p.rejectReason || tableGroups[gKey].reason; }
@@ -1219,7 +1215,7 @@
                 let reasonTxt = tg.reason || "Kapasite/Alan sınırı.";
                 diagBtn = `<button onclick="showDiagnostic('${sku}', ${tg.target}, ${tg.boxes}, '${reasonTxt}')" class="ml-2 bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-black hover:bg-rose-200" title="Neden hedefime ulaşamadım?">?</button>`;
             }
-            tbody.innerHTML += `<tr class="border-b"><td class="p-2 font-bold flex items-center gap-2"><span class="w-3 h-3 rounded" style="background-color:${tg.colorSet.base}"></span> ${sku} ${diagBtn}</td><td class="p-2 text-slate-500">Planlandı</td><td class="p-2 font-black text-emerald-600">${tg.boxes}</td><td class="p-2">${tg.items} Adet</td><td class="p-2">${tg.partials>0 ? '<span class="text-rose-500 text-[10px] font-bold">Eksik Kat!</span>' : '-'}</td></tr>`;
+            tbody.innerHTML += `<tr class="border-b"><td class="p-2 font-bold flex items-center gap-2"><span class="w-3 h-3 rounded" style="background-color:${tg.colorSet.base}"></span> ${sku} ${diagBtn}</td><td class="p-2 text-slate-500">Planlandı</td><td class="p-2 font-black text-emerald-600">${tg.boxes}</td><td class="p-2">${tg.items} İstif Bloğu</td><td class="p-2">${tg.partials>0 ? '<span class="text-rose-500 text-[10px] font-bold">Eksik Kat!</span>' : '-'}</td></tr>`;
         }
 
         let maxLoadW = 0; let maxLoadL = 0;
@@ -1231,15 +1227,22 @@
             let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
             let safeSkuId = "pallet_canvas_" + idx;
             
+            let orientationText = tg.boxOrientation 
+                ? "Kutular YAN Çevrilecek (Kısa kenar tır uzunluğuna paralel)" 
+                : "Kutular DÜZ Konulacak (Uzun kenar tır uzunluğuna paralel)";
+
             let layoutStr = "";
             if (baseType === 'floor') {
                 let actualRowsUsed = Math.ceil(tg.items); 
                 layoutStr = `
                 <div class="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-100">
                     <span class="block text-indigo-700 text-[10px] uppercase font-bold mb-1">Araç İçi Genel Dizilim Yönü</span>
-                    <strong class="text-slate-800 text-xs">
+                    <strong class="text-slate-800 text-xs block mb-1">
                         Genişlik (En): ${tg.layoutCols || "-"} Koli &nbsp;|&nbsp; Uzunluk (Boy): ${actualRowsUsed || "-"} Koli &nbsp;|&nbsp; Yükseklik (Kat): ${tg.layoutLayers || "-"} Kat
                     </strong>
+                    <span class="text-emerald-700 font-bold text-[10px] uppercase border border-emerald-200 bg-emerald-50 px-1 py-0.5 rounded shadow-sm inline-block mt-1">
+                        Kutu Yönü: ${orientationText}
+                    </span>
                 </div>`;
             } else {
                 let sampleItem = result.placedItems.find(p => p.id === sku);
@@ -1251,9 +1254,12 @@
                     layoutStr = `
                     <div class="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-100">
                         <span class="block text-indigo-700 text-[10px] uppercase font-bold mb-1">Palet Başına Dizilim</span>
-                        <strong class="text-slate-800 text-xs">
+                        <strong class="text-slate-800 text-xs block mb-1">
                             Genişlik (En): ${pCols} Koli &nbsp;|&nbsp; Uzunluk (Boy): ${pRows} Koli &nbsp;|&nbsp; Yükseklik (Kat): ${layersOnPallet} Kat
                         </strong>
+                        <span class="text-emerald-700 font-bold text-[10px] uppercase border border-emerald-200 bg-emerald-50 px-1 py-0.5 rounded shadow-sm inline-block mt-1">
+                            Kutu Yönü: ${orientationText}
+                        </span>
                     </div>`;
                 }
             }
@@ -1262,10 +1268,10 @@
                 <li class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm mt-2 print-break-inside-avoid">
                     <div class="flex items-center gap-2 mb-2"><span class="w-4 h-4 inline-block rounded border border-slate-300" style="background-color:${tg.colorSet.base}"></span> <strong class="text-indigo-800 text-[13px]">${sku}</strong></div>
                     <div class="grid grid-cols-2 gap-2 text-xs mb-2">
-                        <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">Hazırlanacak Tam İstif</span> <strong class="text-slate-800 text-sm">${tg.items - tg.partials} Adet</strong></div>
-                        <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">İstif Başına Koli</span> <strong class="text-slate-800 text-sm">${tg.boxesPerUnit} Koli</strong></div>
+                        <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">Hazırlanacak Toplam Blok</span> <strong class="text-slate-800 text-sm">${tg.items} Adet</strong></div>
+                        <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">Blok Başına Koli</span> <strong class="text-slate-800 text-sm">${tg.boxesPerUnit} Koli</strong></div>
                         ${layoutStr}
-                        ${tg.partials > 0 ? `<div class="col-span-2 bg-rose-50 text-rose-700 p-2 rounded border border-rose-200 mt-1">⚠️ <strong>Ağırlık/Alan Limiti:</strong> Kalan son istif tam dizilmeyecektir! İllüstrasyonda (!) işaretli kutuda yazan koli adedi kadar koyun! Tablodaki (?) butonundan detayları okuyun.</div>` : ''}
+                        ${tg.partials > 0 ? `<div class="col-span-2 bg-rose-50 text-rose-700 p-2 rounded border border-rose-200 mt-1">⚠️ <strong>Ağırlık/Alan Limiti:</strong> Kalan son blok tam dizilmeyecektir! İllüstrasyonda kırmızı etiketle yazan koli adedi kadar koyun! Tablodaki (?) butonundan detayları okuyun.</div>` : ''}
                     </div>
                     
                     <div class="col-span-2 flex items-center gap-4 border-t border-slate-100 pt-3">
@@ -1292,7 +1298,7 @@
                     <h5 class="font-bold text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded mb-2">ADIM 2: ARAÇ İÇİNE YERLEŞTİRİN & MERKEZLEYİN</h5>
                     <ul class="space-y-2 text-xs text-indigo-900 list-disc pl-5">
                         <li>Aşağıdaki <strong>3D İllüstrasyona</strong> bakarak istifleri araca yükleyin. <strong>TÜM YÜKÜ DORSE GENİŞLİĞİNE GÖRE TAM ORTALAYIN.</strong></li>
-                        <li>Bazı istifler/paletler araca tam sığması için <strong>yan çevrilmiştir (90 derece döndürülmüştür)</strong>. Çizimdeki şekle birebir uyun.</li>
+                        <li>Yukarıdaki "Kutu Yönü" talimatına kesinlikle uyun. Bazı kutular araca tam sığması için <strong>yan çevrilmiştir (90 derece döndürülmüştür)</strong>.</li>
                     </ul>
                 </div>
                 <div class="print-break-inside-avoid">
@@ -1305,7 +1311,6 @@
             </div>
         `;
 
-        // Render the 2D Pallet Previews after DOM insertion
         sortedGroups.forEach((tg, idx) => {
             let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
             let safeSkuId = "pallet_canvas_" + idx;
@@ -1337,20 +1342,18 @@
         });
         if (placedItems.length === 0) { minX = 0; maxX = 0; minY = 0; maxY = 0; }
         
-        let totalLoadL = maxX - minX; 
-        let totalLoadW = maxY - minY; 
+        let totalLoadL = maxX - minX; let totalLoadW = maxY - minY; 
         let offsetY = ((contW - 10) - totalLoadW) / 2; 
 
         let blocks3D = [];
         placedItems.forEach(item => {
             let py = offsetY + (item.y - minY);
-            let lbl = item.isPartial ? `! ${item.boxes}K` : `${item.displayLayers || Math.ceil(item.boxes / (item.palletBlocks[0].cols * item.palletBlocks[0].rows))} Kat`;
+            let lbl = `${item.boxes} Koli`;
             blocks3D.push({ x: item.x, y: py, z: 0, l: item.l, w: item.w, h: item.h, cTop: item.colorSet.top, cRight: item.colorSet.right, cLeft: item.colorSet.left, label: lbl, isPartial: item.isPartial });
         });
 
         let drawL = contL; let drawW = contW; let drawH = contH;
         
-        // Exact Bounding Box in Isometric Space
         let uMin = -drawW * cosA;
         let uMax = drawL * cosA;
         let vMin = -drawH;
