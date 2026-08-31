@@ -160,8 +160,8 @@
         <div class="flex items-center gap-3 w-full md:w-auto">
             <div class="w-6 h-6 md:w-8 md:h-8 bg-sky-500 rounded flex items-center justify-center font-black text-lg md:text-xl tracking-tighter">E</div>
             <div>
-                <h1 class="text-lg md:text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">OptiLoad</span></h1>
-                <p class="text-[9px] md:text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Dinamik & Statik Saha Operasyon Planlayıcısı</p>
+                <h1 class="text-lg md:text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">3D OptiLoad</span></h1>
+                <p class="text-[9px] md:text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Gelişmiş Fizik & 3D Yükleme Simülatörü</p>
             </div>
         </div>
 
@@ -247,11 +247,6 @@
                 <div class="input-group"><label>Dökme Katı (İstif)</label><input type="text" value="Zemine Yayılarak" readonly class="!bg-indigo-50 !text-indigo-700 font-bold border-indigo-200 text-[10px] text-center"></div>
             </div>
 
-            <div class="input-group mb-3 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg hidden" id="targetBoxesGroup">
-                <label class="!text-fuchsia-800 flex items-center justify-between"><span>Hedef Koli (Tasarım)</span></label>
-                <input type="number" id="targetBoxes" value="0" placeholder="0 = Tamamen Doldur" class="bg-white border-fuchsia-300" oninput="debouncedRunEngine()">
-            </div>
-
             <div class="section-header">Taşıma Tabanı</div>
             <div class="input-group mb-3">
                 <select id="baseType" onchange="handleBaseChange(); debouncedRunEngine();">
@@ -291,6 +286,12 @@
             <div id="panel-single" class="block">
                 <div class="section-header">Tekil Ürün Modu</div>
                 <div class="input-group mb-3"><select id="skuSelect" onchange="populateSKU(); debouncedRunEngine();"></select></div>
+                
+                <div class="input-group mb-3 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg">
+                    <label class="!text-fuchsia-800 flex items-center justify-between"><span>Hedef Koli (İhtiyaç Kadar)</span></label>
+                    <input type="number" id="targetBoxes" value="0" placeholder="0 = Tırı Tamamen Doldur" class="bg-white border-fuchsia-300" oninput="debouncedRunEngine()">
+                </div>
+
                 <div class="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
                     <div class="input-group"><label>Uzun (L)</label><input type="number" id="boxL" readonly class="bg-slate-100"></div>
                     <div class="input-group"><label>Geniş (W)</label><input type="number" id="boxW" readonly class="bg-slate-100"></div>
@@ -753,7 +754,6 @@
         document.getElementById('tab-mixed').className = mode === 'mixed' ? 'tab-btn active text-sm text-center py-3' : 'tab-btn text-sm text-slate-500 text-center py-3';
         document.getElementById('panel-single').style.display = mode === 'single' ? 'block' : 'none';
         document.getElementById('panel-mixed').style.display = mode === 'mixed' ? 'block' : 'none';
-        document.getElementById('targetBoxesGroup').style.display = mode === 'single' ? 'block' : 'none';
         debouncedRunEngine(); 
     }
 
@@ -854,7 +854,6 @@
         
         let initialPinchDist = null;
 
-        // Mouse Events
         canvas.addEventListener('mousedown', (e) => {
             isDraggingCanvas = true;
             dragStartCanvasX = e.clientX - panX;
@@ -889,7 +888,6 @@
             if(lastRenderData) performRender(lastRenderData);
         });
 
-        // Touch Events (Mobile)
         canvas.addEventListener('touchstart', (e) => {
             if(e.touches.length === 1) {
                 isDraggingCanvas = true;
@@ -932,571 +930,8 @@
     function resetView() { panX = 0; panY = 0; zoomLevel = 1; if(lastRenderData) performRender(lastRenderData); }
 
     // ==========================================
-    // CORE PACKING ENGINE & MULTI-VEHICLE ROUTING
+    // 3D RENDERING ENGINE (WITH INDIVIDUAL BOXES)
     // ==========================================
-    function runEngine() {
-        document.getElementById('mixedResultsTable').style.display = currentMode === 'mixed' ? 'block' : 'none';
-        
-        const baseType = document.getElementById('baseType').value;
-        const contL = parseInt(document.getElementById('contL').value);
-        const contW = parseInt(document.getElementById('contW').value);
-        const contH = parseInt(document.getElementById('contH').value);
-        const maxWgt = parseInt(document.getElementById('maxWgt').value);
-        
-        let effContL = contL - 10; let effContW = contW - 10;
-        const optFrontCurve = (document.getElementById('vehicleType').value === 'TIR') && document.getElementById('optFrontCurve').checked;
-        if (optFrontCurve) effContL -= 100;
-        if (document.getElementById('optDoor').checked) effContL -= 80;
-
-        let itemTypes = [];
-        let titleText = "";
-        let infiniteMode = false;
-
-        // Dynamic Floor Spread Layer Calculation
-        let globalBestK = 20; 
-        if (baseType === 'floor') {
-            let anyInfinite = false;
-            if (currentMode === 'single') {
-                if ((parseInt(document.getElementById('targetBoxes').value) || 0) <= 0) anyInfinite = true;
-            } else {
-                let allZ = Array.from(document.querySelectorAll('.mixed-val')).every(inp => (parseInt(inp.value) || 0) === 0);
-                if (allZ) anyInfinite = true;
-            }
-
-            if (!anyInfinite) {
-                for (let k = 1; k <= 20; k++) {
-                    let totalL = 0;
-                    if (currentMode === 'single') {
-                        const skuObj = skuDatabase[document.getElementById('skuSelect').value];
-                        let tBoxes = parseInt(document.getElementById('targetBoxes').value) || 0;
-                        let c1 = Math.floor(effContW / skuObj.W); let r1 = Math.floor(effContL / skuObj.L);
-                        let c2 = Math.floor(effContW / skuObj.L); let r2 = Math.floor(effContL / skuObj.W);
-                        let cols = ((c2 * r2) > (c1 * r1)) ? c2 : c1;
-                        let actualBoxL = ((c2 * r2) > (c1 * r1)) ? skuObj.W : skuObj.L;
-                        let physMaxLayers = Math.max(1, Math.min(skuObj.maxLayers, Math.floor((contH - 20) / skuObj.H)));
-                        let activeK = Math.min(k, physMaxLayers);
-                        totalL += Math.ceil(tBoxes / (cols * activeK)) * actualBoxL;
-                    } else {
-                        document.querySelectorAll('.mixed-row').forEach(r => {
-                            let skuIdx = r.querySelector('.mixed-sku').value;
-                            let tBoxes = parseFloat(r.querySelector('.mixed-val').value) || 0;
-                            if(tBoxes <= 0) return;
-                            const sku = skuDatabase[skuIdx];
-                            let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
-                            let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
-                            let cols = ((c2 * r2) > (c1 * r1)) ? c2 : c1;
-                            let actualBoxL = ((c2 * r2) > (c1 * r1)) ? sku.W : sku.L;
-                            let physMaxLayers = Math.max(1, Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H)));
-                            let activeK = Math.min(k, physMaxLayers);
-                            totalL += Math.ceil(tBoxes / (cols * activeK)) * actualBoxL;
-                        });
-                    }
-                    if (totalL <= effContL) {
-                        globalBestK = k;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (currentMode === 'single') {
-            const skuObj = skuDatabase[document.getElementById('skuSelect').value];
-            titleText = `Tekil Yük: ${skuObj.name}`;
-            document.getElementById('printSkuName').innerText = skuObj.name;
-            let targetBoxes = parseInt(document.getElementById('targetBoxes').value) || 0; 
-            if (targetBoxes === 0) infiniteMode = true;
-
-            if (baseType === 'floor') {
-                let physMaxLayers = Math.max(1, Math.min(skuObj.maxLayers, Math.floor((contH - 20) / skuObj.H)));
-                let c1 = Math.floor(effContW / skuObj.W); let r1 = Math.floor(effContL / skuObj.L);
-                let c2 = Math.floor(effContW / skuObj.L); let r2 = Math.floor(effContL / skuObj.W);
-                let isRotated = (c2 * r2) > (c1 * r1);
-                let cols = isRotated ? c2 : c1; let maxRows = isRotated ? r2 : r1;
-                let actualBoxW = isRotated ? skuObj.L : skuObj.W; let actualBoxL = isRotated ? skuObj.W : skuObj.L;
-                
-                if (cols <= 0) { alert("Bu ürün araç genişliğine sığmıyor."); return; }
-                
-                let maxBoxesByWgt = Math.floor(maxWgt / skuObj.Wt);
-                let maxBoxesByVol = cols * maxRows * physMaxLayers;
-                
-                let realisticTarget = targetBoxes > 0 ? Math.min(targetBoxes, Math.max(maxBoxesByVol, maxBoxesByWgt) * 10) : Math.min(maxBoxesByVol, maxBoxesByWgt);
-                
-                let remaining = realisticTarget;
-                let activeMaxLayers = infiniteMode ? physMaxLayers : Math.min(physMaxLayers, globalBestK);
-
-                while (remaining > 0) {
-                    let boxesInThisRow = Math.min(remaining, cols * activeMaxLayers);
-                    if (boxesInThisRow <= 0) break; 
-                    
-                    let displayLayers = Math.ceil(boxesInThisRow / cols);
-                    let blockW = cols * actualBoxW;
-                    
-                    itemTypes.push({
-                        id: skuObj.name, priority: 0, target: targetBoxes, count: 1, 
-                        l: actualBoxL, w: blockW, h: displayLayers * skuObj.H, boxH: skuObj.H,
-                        boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: cols * activeMaxLayers, boxWt: skuObj.Wt, wgt: boxesInThisRow * skuObj.Wt, isPartial: boxesInThisRow < (cols * activeMaxLayers), area: actualBoxL * blockW,
-                        palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: actualBoxL, actW: blockW, verticalStacks: 1, patternName: 'Dökme İstif', colorSet: colorMap[0],
-                        layoutCols: cols, layoutRows: 1, layoutLayers: activeMaxLayers, boxOrientation: isRotated
-                    });
-                    remaining -= boxesInThisRow;
-                }
-            } else {
-                let pConfig = getBestPalletConfig(skuObj, baseType, contH, maxWgt);
-                if(pConfig) {
-                    let maxBoxesByWgt = Math.floor(maxWgt / skuObj.Wt);
-                    let maxBoxesByVol = pConfig.loads * pConfig.boxesPerLoad;
-                    let realisticTarget = targetBoxes > 0 ? Math.min(targetBoxes, Math.max(maxBoxesByVol, maxBoxesByWgt) * 10) : Math.min(maxBoxesByVol, maxBoxesByWgt);
-                    let pallets = Math.ceil(realisticTarget / pConfig.boxesPerLoad);
-                    for(let k=0; k<pallets; k++) {
-                        let b = Math.min(pConfig.boxesPerLoad, realisticTarget - (k*pConfig.boxesPerLoad));
-                        itemTypes.push({
-                            id: skuObj.name, priority: 0, target: targetBoxes, count: 1, 
-                            l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxH: pConfig.boxH, displayLayers: pConfig.displayLayers,
-                            boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: skuObj.Wt, wgt: (b * skuObj.Wt) + (baseType==='pallet'?25:0), area: pConfig.patL * pConfig.patW,
-                            palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, 
-                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0], boxOrientation: pConfig.isRotated
-                        });
-                    }
-                }
-            }
-        } else {
-            titleText = "Karma Yük (Sıralı Öncelik)";
-            document.getElementById('printSkuName').innerText = "Sıralı Karma Liste";
-            
-            let allZero = Array.from(document.querySelectorAll('.mixed-val')).every(inp => (parseInt(inp.value) || 0) === 0);
-            if (allZero) infiniteMode = true; 
-            
-            document.querySelectorAll('.mixed-row').forEach((r, idx) => {
-                let skuIdx = r.querySelector('.mixed-sku').value;
-                let targetBoxes = parseFloat(r.querySelector('.mixed-val').value) || 0;
-                
-                const sku = skuDatabase[skuIdx];
-                let rColorSet = colorMap[idx % colorMap.length];
-                
-                let physMaxLayers = Math.max(1, Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H)));
-                let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
-                let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
-                let isRotated = (c2 * r2) > (c1 * r1);
-                let cols = isRotated ? c2 : c1; let maxRows = isRotated ? r2 : r1;
-                
-                if (cols <= 0) return;
-                
-                let floorCap = cols * maxRows * physMaxLayers;
-                let wgtCap = Math.floor(maxWgt / sku.Wt);
-                
-                if (infiniteMode && idx === 0) targetBoxes = Math.min(floorCap, wgtCap);
-                else if (infiniteMode || targetBoxes <= 0) return;
-                
-                targetBoxes = Math.min(targetBoxes, Math.max(floorCap, wgtCap) * 10); 
-                
-                if (baseType === 'floor') {
-                    let actualBoxW = isRotated ? sku.L : sku.W; let actualBoxL = isRotated ? sku.W : sku.L;
-                    let remaining = targetBoxes;
-                    let activeMaxLayers = infiniteMode ? physMaxLayers : Math.min(physMaxLayers, globalBestK);
-                    
-                    while (remaining > 0) {
-                        let boxesInThisRow = Math.min(remaining, cols * activeMaxLayers);
-                        if (boxesInThisRow <= 0) break;
-                        
-                        let displayLayers = Math.ceil(boxesInThisRow / cols);
-                        let blockW = cols * actualBoxW;
-                        
-                        itemTypes.push({
-                            id: sku.name, priority: idx, target: targetBoxes, count: 1, 
-                            l: actualBoxL, w: blockW, h: displayLayers * sku.H, boxH: sku.H,
-                            boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: cols * activeMaxLayers, boxWt: sku.Wt, wgt: boxesInThisRow * sku.Wt, isPartial: boxesInThisRow < (cols * activeMaxLayers), area: actualBoxL * blockW,
-                            palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: actualBoxL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
-                            layoutCols: cols, layoutRows: 1, layoutLayers: activeMaxLayers, boxOrientation: isRotated
-                        });
-                        remaining -= boxesInThisRow;
-                    }
-                } else {
-                    let pConfig = getBestPalletConfig(sku, baseType, contH, maxWgt);
-                    if(pConfig) {
-                        let pallets = Math.ceil(targetBoxes / pConfig.boxesPerLoad);
-                        for(let k=0; k<pallets; k++) {
-                            let b = Math.min(pConfig.boxesPerLoad, targetBoxes - (k*pConfig.boxesPerLoad));
-                            itemTypes.push({ 
-                                id: sku.name, priority: idx, target: targetBoxes, count: 1, 
-                                l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxH: pConfig.boxH, displayLayers: pConfig.displayLayers,
-                                boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: sku.Wt, wgt: (b * sku.Wt) + (baseType==='pallet'?25:0), isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: rColorSet, boxOrientation: pConfig.isRotated 
-                            });
-                        }
-                    }
-                }
-            });
-        }
-
-        let queue = [];
-        itemTypes.forEach((type) => { for(let i=0; i<type.count; i++) queue.push({...type}); });
-        queue.sort((a,b) => { if (a.priority !== b.priority) return a.priority - b.priority; return b.area - a.area; });
-
-        globalFleet = [];
-        let safetyCount = 0;
-
-        while(queue.length > 0 && safetyCount < 15) {
-            let result = unifiedPacker(queue, effContL, effContW, maxWgt, baseType);
-            if(result.placedItems.length === 0) break; 
-            
-            globalFleet.push(result);
-            queue = result.remainingQueue;
-            
-            if (infiniteMode) break; 
-            safetyCount++;
-        }
-
-        if(globalFleet.length === 0) {
-            globalFleet.push({ placedItems: [], totalWgt: 0, totalBoxes: 0, remainingQueue: [] });
-        }
-
-        globalEngineContext = { contL, contW, contH, maxWgt, baseType, optFrontCurve, titleText };
-        currentVehicleIdx = 0;
-        updateFleetUI();
-    }
-
-    function getBestPalletConfig(box, baseType, contH, maxWgt) {
-        const allSheets = [ { name: "80x120 cm", l: 1200, w: 800 }, { name: "100x120 cm", l: 1200, w: 1000 }, { name: "97x97 cm", l: 970, w: 970 }, { name: "97x119 cm", l: 1190, w: 970 }, { name: "97x115 cm", l: 1150, w: 970 } ];
-        let targetSheets = baseType === 'slipsheet' ? [{ name: `Slipsheet`, l: 1200, w: 1000 }] : (document.getElementById('specificBaseSize').value === "auto" ? allSheets : [allSheets[parseInt(document.getElementById('specificBaseSize').value)]]);
-        
-        let bestConfig = null;
-        targetSheets.forEach(sheet => {
-            let c1 = Math.floor(sheet.l / box.L); let r1 = Math.floor(sheet.w / box.W);
-            let c2 = Math.floor(sheet.l / box.W); let r2 = Math.floor(sheet.w / box.L);
-            let isStraight = (c1*r1) >= (c2*r2); let layerBoxes = isStraight ? (c1*r1) : (c2*r2);
-            if (layerBoxes <= 0) return;
-
-            let maxL = Math.max(1, Math.min(box.maxLayers, Math.floor((contH - (baseType==='pallet'?200:20))/box.H)));
-            
-            let totalBoxes = layerBoxes * maxL;
-            const contL = parseInt(document.getElementById('contL').value) - 100;
-            let fitStraight = Math.floor(contL / sheet.l) * Math.floor(2420 / sheet.w);
-            let fitRotated = Math.floor(contL / sheet.w) * Math.floor(2420 / sheet.l);
-            let totalPals = Math.max(fitStraight, fitRotated);
-            
-            if (!bestConfig || totalBoxes > bestConfig.boxesPerLoad) {
-                bestConfig = {
-                    patL: sheet.l, patW: sheet.w, boxesPerLoad: totalBoxes, loads: totalPals,
-                    actL: isStraight ? c1*box.L : c2*box.W, actW: isStraight ? r1*box.W : r2*box.L,
-                    palletBlocks: isStraight ? [{x:0, y:0, l:box.L, w:box.W, cols:c1, rows:r1}] : [{x:0, y:0, l:box.W, w:box.L, cols:c2, rows:r2}], 
-                    boxPatternName: isStraight ? 'Düz Dizilim' : 'Döndürülmüş Dizilim',
-                    totalHeight: (maxL * box.H) + (baseType==='pallet'?150:0),
-                    isRotated: !isStraight,
-                    boxH: box.H, displayLayers: maxL
-                };
-            }
-        });
-        return bestConfig;
-    }
-
-    function unifiedPacker(queue, effContL, effContW, maxWgt, baseType) {
-        let placedItems = []; let remainingQueue = []; let freeRects = [{x: 0, y: 0, l: effContL, w: effContW}];
-        let totalWgt = 0; let totalBoxes = 0;
-
-        for (let i = 0; i < queue.length; i++) {
-            let item = {...queue[i]}; let baseTare = baseType === 'pallet' ? 25 : 0;
-            
-            if (totalWgt + item.wgt > maxWgt) {
-                let remWgt = maxWgt - totalWgt;
-                if (remWgt > baseTare) {
-                    let allowBoxes = Math.floor((remWgt - baseTare) / item.boxWt);
-                    if (allowBoxes > 0 && allowBoxes <= item.boxesPerUnit) { 
-                        let leftoverBoxes = item.boxes - allowBoxes;
-                        if(leftoverBoxes > 0) {
-                            let leftoverItem = {...item};
-                            leftoverItem.boxes = leftoverBoxes;
-                            leftoverItem.wgt = (leftoverBoxes * item.boxWt) + baseTare;
-                            remainingQueue.push(leftoverItem);
-                        }
-
-                        item.boxes = allowBoxes; item.wgt = (allowBoxes * item.boxWt) + baseTare; item.isPartial = true; 
-                        item.rejectReason = "Araç ağırlık limiti (" + maxWgt + " kg) sınırına ulaşıldı. Kalanlar sonraki araca aktarıldı.";
-                    } else { item.rejectReason = "Ağırlık limiti doldu."; remainingQueue.push(item); break; } 
-                } else { item.rejectReason = "Ağırlık limiti doldu."; remainingQueue.push(item); break; } 
-            }
-
-            let bestNode = { rectIdx: -1, isRotated: false, score1: Infinity, score2: Infinity, x: -1, y: -1 };
-            let currentCoGY = effContW / 2; 
-
-            for (let j = 0; j < freeRects.length; j++) {
-                let fr = freeRects[j];
-                if (fr.l >= item.l && fr.w >= item.w) {
-                    let distToCenter = Math.abs((fr.y + item.w/2) - currentCoGY); let score = {s1: fr.x, s2: distToCenter}; 
-                    if (score.s1 < bestNode.score1 || (score.s1 === bestNode.score1 && score.s2 < bestNode.score2)) bestNode = { rectIdx: j, isRotated: false, score1: score.s1, score2: score.s2, x: fr.x, y: fr.y };
-                }
-                if (fr.l >= item.w && fr.w >= item.l) {
-                    let distToCenter = Math.abs((fr.y + item.l/2) - currentCoGY); let score = {s1: fr.x, s2: distToCenter};
-                    if (score.s1 < bestNode.score1 || (score.s1 === bestNode.score1 && score.s2 < bestNode.score2)) bestNode = { rectIdx: j, isRotated: true, score1: score.s1, score2: score.s2, x: fr.x, y: fr.y };
-                }
-            }
-
-            if (bestNode.rectIdx !== -1) {
-                let pL = bestNode.isRotated ? item.w : item.l; let pW = bestNode.isRotated ? item.l : item.w;
-                placedItems.push({ x: bestNode.x, y: bestNode.y, z: 0, l: pL, w: pW, h: item.h, boxH: item.boxH, id: item.id, target: item.target, boxes: item.boxes, displayLayers: item.displayLayers, boxesPerUnit: item.boxesPerUnit, wgt: item.wgt, isPartial: item.isPartial, isRotated: bestNode.isRotated, palletBlocks: item.palletBlocks, actL: item.actL, actW: item.actW, verticalStacks: item.verticalStacks, patternName: item.patternName, colorSet: item.colorSet, priority: item.priority, layoutCols: item.layoutCols, layoutRows: item.layoutRows, layoutLayers: item.layoutLayers, rejectReason: item.rejectReason, boxOrientation: item.boxOrientation });
-                totalWgt += item.wgt; totalBoxes += item.boxes;
-                splitFreeRects(freeRects, bestNode.x, bestNode.y, pL, pW);
-            } else {
-                item.rejectReason = "Araç zemininde fiziksel olarak yer kalmadı.";
-                remainingQueue.push(item);
-            }
-        }
-        return { placedItems, totalWgt, totalBoxes, remainingQueue };
-    }
-
-    function splitFreeRects(freeRects, x, y, l, w) {
-        let newRects = [];
-        for (let i = 0; i < freeRects.length; i++) {
-            let fr = freeRects[i];
-            if (x < fr.x + fr.l && x + l > fr.x && y < fr.y + fr.w && y + w > fr.y) {
-                if (y + w < fr.y + fr.w) newRects.push({x: fr.x, y: y + w, l: fr.l, w: fr.y + fr.w - (y + w)});
-                if (y > fr.y) newRects.push({x: fr.x, y: fr.y, l: fr.l, w: y - fr.y});
-                if (x > fr.x) newRects.push({x: fr.x, y: fr.y, l: x - fr.x, w: fr.w});
-                if (x + l < fr.x + fr.l) newRects.push({x: x + l, y: fr.y, l: fr.x + fr.l - (x + l), w: fr.w});
-            } else { newRects.push(fr); }
-        }
-        freeRects.length = 0;
-        for (let i = 0; i < newRects.length; i++) {
-            let isEncl = false;
-            for (let j = 0; j < newRects.length; j++) {
-                if (i !== j && newRects[i].x >= newRects[j].x && newRects[i].y >= newRects[j].y && newRects[i].x + newRects[i].l <= newRects[j].x + newRects[j].l && newRects[i].y + newRects[i].w <= newRects[j].y + newRects[j].w) { isEncl = true; break; }
-            }
-            if (!isEncl) freeRects.push(newRects[i]);
-        }
-    }
-
-    function updateFleetUI() {
-        if(globalFleet.length === 0) return;
-
-        let pagContainer = document.getElementById('fleetPaginationContainer');
-        let pagHtml = '';
-        if (globalFleet.length > 1) {
-            pagHtml = `<div class="flex gap-2 mb-3 md:mb-4 p-2 md:p-3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-x-auto custom-scrollbar">`;
-            globalFleet.forEach((v, idx) => {
-                let activeClass = idx === currentVehicleIdx ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200';
-                pagHtml += `<button onclick="currentVehicleIdx = ${idx}; updateFleetUI();" class="px-3 md:px-5 py-2 rounded-lg font-bold text-xs md:text-sm whitespace-nowrap transition-colors ${activeClass}">🚚 Araç ${idx + 1} <span class="text-[9px] md:text-[10px] font-normal opacity-90 block">${v.totalBoxes} Koli</span></button>`;
-            });
-            pagHtml += `</div>`;
-        }
-        pagContainer.innerHTML = pagHtml;
-
-        let vData = globalFleet[currentVehicleIdx];
-        const ctx = globalEngineContext;
-        
-        updateUnifiedUI(vData, ctx.contL, ctx.contW, ctx.contH, ctx.maxWgt, ctx.baseType, ctx.optFrontCurve, ctx.titleText);
-    }
-
-    function drawPalletPreview(canvasId, item, baseType) {
-        const canvas = document.getElementById(canvasId);
-        if(!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const pad = 10;
-        
-        let patL, patW;
-        if (baseType === 'floor') {
-            patL = item.actL * 2.5; patW = item.actW * 2.5; 
-        } else {
-            patL = item.isRotated ? item.w : item.l; patW = item.isRotated ? item.l : item.w;
-        }
-
-        const scale = Math.min((canvas.width - pad*2) / patL, (canvas.height - pad*2) / patW);
-        const cx = (canvas.width - (patL * scale)) / 2;
-        const cy = (canvas.height - (patW * scale)) / 2;
-
-        ctx.fillStyle = baseType === 'floor' ? '#f8fafc' : '#e2e8f0';
-        ctx.fillRect(cx, cy, patL * scale, patW * scale);
-        if(baseType !== 'floor') { ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.strokeRect(cx, cy, patL * scale, patW * scale); }
-
-        ctx.save(); ctx.translate(cx, cy);
-        
-        if (baseType === 'floor') {
-            let loadW = item.layoutCols * item.palletBlocks[0].w;
-            let loadL = item.palletBlocks[0].l; 
-            let bOffsetX = ((patL * scale) - (loadL * scale)) / 2;
-            let bOffsetY = ((patW * scale) - (loadW * scale)) / 2;
-            ctx.translate(bOffsetX, bOffsetY);
-            for(let r=0; r<1; r++){ 
-                for(let c=0; c<item.layoutCols; c++){
-                    ctx.fillStyle = item.colorSet.top;
-                    ctx.fillRect(r * item.palletBlocks[0].l * scale, c * item.palletBlocks[0].w * scale, item.palletBlocks[0].l * scale - 1, item.palletBlocks[0].w * scale - 1);
-                    ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.strokeRect(r * item.palletBlocks[0].l * scale, c * item.palletBlocks[0].w * scale, item.palletBlocks[0].l * scale - 1, item.palletBlocks[0].w * scale - 1);
-                }
-            }
-        } else {
-            let minX = Infinity, maxX = 0, minY = Infinity, maxY = 0;
-            item.palletBlocks.forEach(b => {
-                if (b.x < minX) minX = b.x; if (b.y < minY) minY = b.y;
-                if (b.x + (b.cols * b.l) > maxX) maxX = b.x + (b.cols * b.l);
-                if (b.y + (b.rows * b.w) > maxY) maxY = b.y + (b.rows * b.w);
-            });
-            let loadL = maxX - minX; let loadW = maxY - minY;
-            let bOffsetX = (patL - loadL) * scale / 2;
-            let bOffsetY = (patW - loadW) * scale / 2;
-            ctx.translate(bOffsetX, bOffsetY);
-
-            item.palletBlocks.forEach(b => {
-                let mBL = b.l * scale; let mBW = b.w * scale;
-                let bStartX = b.x * scale; let bStartY = b.y * scale;
-                for (let r = 0; r < b.rows; r++) {
-                    for (let c = 0; c < b.cols; c++) {
-                        const bx = bStartX + (c * mBL); const by = bStartY + (r * mBW);
-                        ctx.fillStyle = item.colorSet.top; ctx.fillRect(bx, by, mBL - 1, mBW - 1);
-                        ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, mBL - 1, mBW - 1);
-                    }
-                }
-            });
-        }
-        ctx.restore();
-    }
-
-    function updateUnifiedUI(result, contL, contW, contH, maxWgt, baseType, optFrontCurve, titleText) {
-        document.getElementById('layerOptimizationInfo').style.display = 'block'; 
-        document.getElementById('resTotalBoxes').innerText = result.totalBoxes.toLocaleString();
-        document.getElementById('resWeight').innerText = `${result.totalWgt.toLocaleString(undefined, {maximumFractionDigits:1})} kg`;
-        
-        let trueLoadCount = 0;
-        let lastLoadType = null;
-        result.placedItems.forEach(p => { 
-            let hash = p.id + p.boxes;
-            if (hash !== lastLoadType) { trueLoadCount++; lastLoadType = hash; }
-        });
-        document.getElementById('resLoads').innerText = `${trueLoadCount} İstif`;
-        
-        let momentX = 0, momentY = 0;
-        result.placedItems.forEach(p => { momentX += (p.x + p.l/2) * p.wgt; momentY += (p.y + p.w/2) * p.wgt; });
-        let cogX = result.totalWgt > 0 ? (momentX / result.totalWgt) : 0;
-        
-        let weightPct = Math.min(100, Math.round((result.totalWgt / maxWgt) * 100));
-        document.getElementById('resStatus').innerHTML = weightPct >= 99 ? `⚠️ Ağırlık Dolu (CoG: ${Math.round(cogX/1000)}m)` : `Optimum (CoG: ${Math.round(cogX/1000)}m)`;
-        document.getElementById('resStatus').className = weightPct >= 99 ? "text-sm font-bold text-rose-600 mt-1" : "text-sm font-bold text-emerald-600 mt-1";
-
-        let tableGroups = {};
-        result.placedItems.forEach(p => {
-            let gKey = p.id + '_p' + p.priority; 
-            if(!tableGroups[gKey]) {
-                tableGroups[gKey] = { id: p.id, boxes: 0, items: 0, partials: 0, target: p.target, reason: p.rejectReason, patternName: p.patternName, boxesPerUnit: p.boxesPerUnit, colorSet: p.colorSet, priority: p.priority, layoutCols: p.layoutCols, layoutRows: p.layoutRows, layoutLayers: p.layoutLayers, boxOrientation: p.boxOrientation };
-            }
-            tableGroups[gKey].boxes += p.boxes; tableGroups[gKey].items++;
-            if(p.isPartial || p.boxes < p.boxesPerUnit) { tableGroups[gKey].partials++; tableGroups[gKey].reason = p.rejectReason || tableGroups[gKey].reason; }
-        });
-
-        let sortedGroups = Object.values(tableGroups).sort((a,b) => a.priority - b.priority);
-        let tbody = document.getElementById('mixedResultsBody'); tbody.innerHTML = '';
-        
-        for(let tg of sortedGroups) {
-            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let diagBtn = "";
-            if (tg.boxes < tg.target && tg.target > 0) {
-                let reasonTxt = tg.reason || "Kapasite/Alan sınırı.";
-                diagBtn = `<button onclick="showDiagnostic('${sku}', ${tg.target}, ${tg.boxes}, '${reasonTxt}')" class="ml-2 bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full text-[10px] font-black hover:bg-rose-200" title="Neden hedefime ulaşamadım?">?</button>`;
-            }
-            tbody.innerHTML += `<tr class="border-b"><td class="p-2 font-bold flex items-center gap-2"><span class="w-3 h-3 rounded" style="background-color:${tg.colorSet.base}"></span> ${sku} ${diagBtn}</td><td class="p-2 text-slate-500">Araç ${currentVehicleIdx + 1}</td><td class="p-2 font-black text-emerald-600">${tg.boxes}</td><td class="p-2">${tg.items} İstif Bloğu</td><td class="p-2">${tg.partials>0 ? '<span class="text-rose-500 text-[10px] font-bold">Eksik Kat!</span>' : '-'}</td></tr>`;
-        }
-
-        let maxLoadW = 0; let maxLoadL = 0;
-        result.placedItems.forEach(p => { if (p.y + p.w > maxLoadW) maxLoadW = p.y + p.w; if (p.x + p.l > maxLoadL) maxLoadL = p.x + p.l; });
-        let gapW = (contW - 10) - maxLoadW; let gapL = (contL - 10) - maxLoadL; 
-
-        let skuDetailsHtml = '';
-        sortedGroups.forEach((tg, idx) => {
-            let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-            let safeSkuId = "pallet_canvas_" + idx;
-            
-            let orientationText = tg.boxOrientation 
-                ? "Kutular YAN Çevrilecek (Kısa kenar tır uzunluğuna paralel)" 
-                : "Kutular DÜZ Konulacak (Uzun kenar tır uzunluğuna paralel)";
-
-            let layoutStr = "";
-            if (baseType === 'floor') {
-                let actualRowsUsed = Math.ceil(tg.items); 
-                layoutStr = `
-                <div class="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-100">
-                    <span class="block text-indigo-700 text-[10px] uppercase font-bold mb-1">Araç İçi Genel Dizilim Yönü</span>
-                    <strong class="text-slate-800 text-xs block mb-1">
-                        Genişlik (En): ${tg.layoutCols || "-"} Koli &nbsp;|&nbsp; Uzunluk (Boy): ${actualRowsUsed || "-"} Koli &nbsp;|&nbsp; Yükseklik (Kat): ${tg.layoutLayers || "-"} Kat
-                    </strong>
-                    <span class="text-emerald-700 font-bold text-[10px] uppercase border border-emerald-200 bg-emerald-50 px-1 py-0.5 rounded shadow-sm inline-block mt-1">
-                        Kutu Yönü: ${orientationText}
-                    </span>
-                </div>`;
-            } else {
-                let sampleItem = result.placedItems.find(p => p.id === sku);
-                if (sampleItem && sampleItem.palletBlocks) {
-                    let blk = sampleItem.palletBlocks[0];
-                    let pCols = sampleItem.isRotated ? blk.rows : blk.cols;
-                    let pRows = sampleItem.isRotated ? blk.cols : blk.rows;
-                    let layersOnPallet = Math.floor(tg.boxesPerUnit / (pCols * pRows));
-                    layoutStr = `
-                    <div class="col-span-2 bg-indigo-50 p-2 rounded border border-indigo-100">
-                        <span class="block text-indigo-700 text-[10px] uppercase font-bold mb-1">Palet Başına Dizilim</span>
-                        <strong class="text-slate-800 text-xs block mb-1">
-                            Genişlik (En): ${pCols} Koli &nbsp;|&nbsp; Uzunluk (Boy): ${pRows} Koli &nbsp;|&nbsp; Yükseklik (Kat): ${layersOnPallet} Kat
-                        </strong>
-                        <span class="text-emerald-700 font-bold text-[10px] uppercase border border-emerald-200 bg-emerald-50 px-1 py-0.5 rounded shadow-sm inline-block mt-1">
-                            Kutu Yönü: ${orientationText}
-                        </span>
-                    </div>`;
-                }
-            }
-
-            skuDetailsHtml += `
-                <li class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm mt-2 print-break-inside-avoid">
-                    <div class="flex items-center gap-2 mb-2"><span class="w-4 h-4 inline-block rounded border border-slate-300" style="background-color:${tg.colorSet.base}"></span> <strong class="text-indigo-800 text-[13px]">${sku}</strong></div>
-                    <div class="grid grid-cols-2 gap-2 text-xs mb-2">
-                        <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">Bu Araç İçin Blok</span> <strong class="text-slate-800 text-sm">${tg.items} Adet</strong></div>
-                        <div class="bg-slate-50 p-2 rounded"><span class="block text-slate-500 text-[10px] uppercase">Blok Başına Koli</span> <strong class="text-slate-800 text-sm">${tg.boxesPerUnit} Koli</strong></div>
-                        ${layoutStr}
-                        ${tg.partials > 0 ? `<div class="col-span-2 bg-rose-50 text-rose-700 p-2 rounded border border-rose-200 mt-1">⚠️ <strong>Kısmi İstif:</strong> Son bloğu illüstrasyonda kırmızı etiketle yazan sayı kadar koyun.</div>` : ''}
-                    </div>
-                    
-                    <div class="col-span-2 flex items-center gap-4 border-t border-slate-100 pt-3">
-                        <div class="w-24 h-24 flex-shrink-0">
-                            <canvas id="${safeSkuId}" width="96" height="96" class="w-full h-full object-contain bg-slate-50 border border-slate-200 rounded"></canvas>
-                        </div>
-                        <div class="text-[10px] text-slate-500">
-                            <strong class="text-slate-700 uppercase tracking-wider">Taban Dizilimi (Üstten Görünüm)</strong><br>
-                            İlk katı yandaki çizime göre merkeze hizalayarak yerleştirin. Üzerine belirtilen kat sayısına ulaşana kadar aynı düzeni tekrarlayın.
-                        </div>
-                    </div>
-                </li>`;
-        });
-
-        const useAirbag = document.getElementById('optAirbag').checked;
-        const useLashing = document.getElementById('optLashing').checked;
-
-        document.getElementById('optimizationDetailsList').innerHTML = `
-            <div class="bg-indigo-50 p-4 md:p-5 rounded-2xl border border-indigo-200 mb-2 shadow-md">
-                <h4 class="font-black text-indigo-900 text-sm md:text-base mb-2">👷 ADIM ADIM SAHA OPERATÖR TALİMATI (ARAÇ ${currentVehicleIdx + 1})</h4>
-                <p class="text-[10px] md:text-[11px] text-indigo-800 mb-4 leading-relaxed font-semibold">Aracı güvenli ve eksiksiz yüklemek için aşağıdaki adımları sırasıyla uygulayın:</p>
-                <div class="mb-4"><h5 class="font-bold text-xs md:text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded">ADIM 1: İSTİFLERİ/PALETLERİ HAZIRLAYIN</h5><ul class="space-y-1">${skuDetailsHtml}</ul></div>
-                <div class="mb-4 print-break-inside-avoid">
-                    <h5 class="font-bold text-xs md:text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded mb-2">ADIM 2: ARAÇ İÇİNE YERLEŞTİRİN & MERKEZLEYİN</h5>
-                    <ul class="space-y-2 text-[10px] md:text-xs text-indigo-900 list-disc pl-5">
-                        <li>Aşağıdaki <strong>3D İllüstrasyona</strong> bakarak istifleri araca yükleyin. <strong>TÜM YÜKÜ DORSE GENİŞLİĞİNE GÖRE TAM ORTALAYIN.</strong></li>
-                        <li>Yukarıdaki "Kutu Yönü" talimatına kesinlikle uyun. Bazı kutular araca tam sığması için <strong>yan çevrilmiştir (90 derece döndürülmüştür)</strong>.</li>
-                    </ul>
-                </div>
-                <div class="print-break-inside-avoid">
-                    <h5 class="font-bold text-xs md:text-[13px] text-indigo-900 bg-indigo-100 p-2 rounded">ADIM 3: GÜVENLİK VE SABİTLEME (STATİK/DİNAMİK ETKİLER)</h5>
-                    <ul class="space-y-2 text-[10px] md:text-xs mt-2 pl-2 text-indigo-900">
-                        ${(useAirbag && gapW > 100) ? `<li>🔄 <strong>Yanal Merkezkaç Etkisi:</strong> Yük ortalandığında yanlarda toplam ${Math.floor(gapW)}mm boşluk kalmaktadır. Virajlarda devrilmeyi önlemek için bu boşluklara <strong>Hava Yastığı (Airbag) veya Takoz</strong> yerleştirilmelidir.</li>` : '<li>✅ Yanal alan güvenli seviyede doludur (veya Hava Yastığı opsiyonu kapalı).</li>'}
-                        ${(useLashing && gapL > 200) ? `<li>🚚 <strong>Frenleme/İvme Etkisi:</strong> Yük arka kapıya tam ulaşmamaktadır (${Math.floor(gapL)}mm). Yola çıkmadan önce yükün bittiği noktaya <strong>Spanset (Lashing)</strong> çekilerek yük sabitlenmelidir.</li>` : '<li>✅ Uzunlamasına boşluk güvenli seviyededir (veya Spanset opsiyonu kapalı).</li>'}
-                    </ul>
-                </div>
-            </div>
-        `;
-
-        setTimeout(() => {
-            sortedGroups.forEach((tg, idx) => {
-                let sku = tg.id || Object.keys(tableGroups).find(k => tableGroups[k] === tg);
-                let safeSkuId = "pallet_canvas_" + idx;
-                let sampleItem = result.placedItems.find(p => p.id === sku);
-                if(sampleItem) drawPalletPreview(safeSkuId, sampleItem, baseType);
-            });
-        }, 50);
-
-        lastRenderData = { placedItems: result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX, baseType };
-        performRender(lastRenderData);
-    }
-
     function performRender(data) {
         const { placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX, baseType } = data;
         const canvas = document.getElementById('contCanvas'); 
@@ -1522,61 +957,20 @@
         let totalLoadL = maxX - minX; let totalLoadW = maxY - minY; 
         let offsetY = ((contW - 10) - totalLoadW) / 2; 
 
-        // Generate individual boxes for the 3D Engine
         let blocks3D = [];
-        
         placedItems.forEach(item => {
             let py = offsetY + (item.y - minY);
-            let pBaseH = 0;
+            let pb = item.palletBlocks ? item.palletBlocks[0] : { cols: item.layoutCols, rows: item.layoutRows, l: item.l, w: item.w };
+            let totalLayers = item.displayLayers || 1;
             
-            // Draw Pallet Base if required
-            if (baseType !== 'floor') {
-                pBaseH = baseType === 'pallet' ? 150 : 20;
-                blocks3D.push({ 
-                    x: item.x, y: py, z: 0, l: item.l, w: item.w, h: pBaseH, 
-                    cTop: '#cbd5e1', cRight: '#94a3b8', cLeft: '#64748b', 
-                    label: '', isPartial: false, isPallet: true 
-                });
-            }
-
-            let bCount = 0;
-            let pb = item.palletBlocks[0];
-            let totalLayers = item.displayLayers || Math.ceil(item.boxes / (pb.cols * pb.rows));
-            
-            let loadL = pb.rows * pb.l;
-            let loadW = pb.cols * pb.w;
-            let cx = item.x + (item.l - loadL) / 2;
-            let cy = py + (item.w - loadW) / 2;
-            
-            let singleBoxH = item.boxH || (item.h / totalLayers);
-
-            for (let z = 0; z < totalLayers; z++) {
-                for (let r = 0; r < pb.rows; r++) {
-                    for (let c = 0; c < pb.cols; c++) {
-                        if (bCount >= item.boxes) break;
-                        
-                        let bx = cx + (r * pb.l);
-                        let by = cy + (c * pb.w);
-                        let bz = pBaseH + (z * singleBoxH);
-                        
-                        let drawLbl = "";
-                        // Only draw label on the top center box of the block
-                        if (z === totalLayers - 1 && r === Math.floor(pb.rows/2) && c === Math.floor(pb.cols/2)) {
-                            drawLbl = item.isPartial ? `⚠️ ${item.boxes} Koli` : `${item.boxes} Koli`;
-                        }
-                        if (bCount === item.boxes - 1 && z !== totalLayers - 1 && !drawLbl) {
-                            drawLbl = `⚠️ ${item.boxes} Koli`;
-                        }
-
-                        blocks3D.push({ 
-                            x: bx, y: by, z: bz, l: pb.l, w: pb.w, h: singleBoxH, 
-                            cTop: item.colorSet.top, cRight: item.colorSet.right, cLeft: item.colorSet.left, 
-                            label: drawLbl, isPartial: item.isPartial, isPallet: false 
-                        });
-                        bCount++;
-                    }
-                }
-            }
+            blocks3D.push({ 
+                x: item.x, y: py, z: 0, l: item.l, w: item.w, h: item.h,
+                cTop: item.colorSet.top, cRight: item.colorSet.right, cLeft: item.colorSet.left,
+                label: `${item.boxes} Koli`, isPartial: item.isPartial,
+                cols: pb.cols, rows: pb.rows, layers: totalLayers,
+                singleBoxL: pb.l, singleBoxW: pb.w, singleBoxH: item.h / totalLayers,
+                isPallet: (baseType === 'pallet')
+            });
         });
 
         let drawL = contL; let drawW = contW; let drawH = contH;
@@ -1605,12 +999,20 @@
             return { x: cx + panX + (u - uCenter) * activeScale, y: cy + panY + (v - vCenter) * activeScale };
         }
 
-        function drawPolygon(pts, color, strokeColor = 'rgba(0,0,0,0.3)') {
+        function drawPolygon(pts, color, strokeColor = 'rgba(0,0,0,0.15)', lineWidth = 1) {
             ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
             for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-            ctx.closePath(); ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = strokeColor; ctx.stroke();
+            ctx.closePath(); 
+            if(color) { ctx.fillStyle = color; ctx.fill(); }
+            if(strokeColor) { ctx.strokeStyle = strokeColor; ctx.lineWidth = lineWidth; ctx.stroke(); }
         }
 
+        function drawLine(p1, p2, strokeColor = 'rgba(0,0,0,0.3)', lineWidth = 1) {
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = strokeColor; ctx.lineWidth = lineWidth; ctx.stroke();
+        }
+
+        // Draw Container Base & Walls
         let w0 = project(0, 0, 0); 
         let wX = project(drawL, 0, 0); 
         let wY = project(0, drawW, 0);
@@ -1618,17 +1020,18 @@
         let wXZ = project(drawL, 0, drawH); 
         let wYZ = project(0, drawW, drawH);
         
-        drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155', '#1e293b'); 
-        drawPolygon([w0, wX, wXZ, wZ], '#1e293b', '#0f172a'); 
-        drawPolygon([w0, wY, wYZ, wZ], '#0f172a', '#020617'); 
+        drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155'); 
+        drawPolygon([w0, wX, wXZ, wZ], '#1e293b'); 
+        drawPolygon([w0, wY, wYZ, wZ], '#0f172a'); 
         
         if (optFrontCurve) {
             let b0 = project(0,0,0); let bX = project(100,0,0); let bY = project(0,drawW,0); let bXY = project(100,drawW,0);
-            drawPolygon([b0, bX, bXY, bY], 'rgba(234, 179, 8, 0.4)', '#ca8a04');
+            drawPolygon([b0, bX, bXY, bY], 'rgba(234, 179, 8, 0.4)');
         }
 
         blocks3D.sort((a,b) => (a.x + a.y + a.z) - (b.x + b.y + b.z));
 
+        // Draw Blocks and Draw Individual Boxes via Surface Grids
         blocks3D.forEach(b => {
             let p0 = project(b.x, b.y, b.z);
             let px = project(b.x + b.l, b.y, b.z);
@@ -1639,24 +1042,53 @@
             let pyz = project(b.x, b.y + b.w, b.z + b.h);
             let pxyz = project(b.x + b.l, b.y + b.w, b.z + b.h);
 
-            let boxStroke = b.isPallet ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.3)';
-
-            drawPolygon([px, pxy, pxyz, pxz], b.cRight, boxStroke); 
-            drawPolygon([py, pxy, pxyz, pyz], b.cLeft, boxStroke);  
-            drawPolygon([p0z, pxz, pxyz, pyz], b.cTop, boxStroke);  
-
-            if (b.label) {
-                let centerTop = project(b.x + b.l/2, b.y + b.w/2, b.z + b.h);
-                let fontSize = Math.max(7, 11 * zoomLevel); 
-                ctx.font = `900 ${fontSize}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                
-                let textWidth = ctx.measureText(b.label).width;
-                ctx.fillStyle = b.isPartial ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.7)';
-                ctx.fillRect(centerTop.x - (textWidth/2) - 4, centerTop.y - (fontSize/2) - 4, textWidth + 8, fontSize + 8);
-                
-                ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
-                ctx.fillText(b.label, centerTop.x, centerTop.y);
+            // 1. Right Face (Along Length X)
+            drawPolygon([px, pxy, pxyz, pxz], b.cRight, 'rgba(0,0,0,0.5)', 1.5);
+            // Internal Grid Lines (Boxes) on Right Face
+            for(let lyr = 1; lyr < b.layers; lyr++) {
+                let zPos = b.z + (lyr * b.singleBoxH);
+                drawLine(project(b.x + b.l, b.y, zPos), project(b.x + b.l, b.y + b.w, zPos), 'rgba(0,0,0,0.4)', 1);
             }
+            for(let c = 1; c < b.cols; c++) {
+                let yPos = b.y + (c * (b.w / b.cols));
+                drawLine(project(b.x + b.l, yPos, b.z), project(b.x + b.l, yPos, b.z + b.h), 'rgba(0,0,0,0.4)', 1);
+            }
+
+            // 2. Left / Front Face (Along Width Y)
+            drawPolygon([py, pxy, pxyz, pyz], b.cLeft, 'rgba(0,0,0,0.5)', 1.5);
+            // Internal Grid Lines (Boxes) on Left Face
+            for(let lyr = 1; lyr < b.layers; lyr++) {
+                let zPos = b.z + (lyr * b.singleBoxH);
+                drawLine(project(b.x, b.y + b.w, zPos), project(b.x + b.l, b.y + b.w, zPos), 'rgba(0,0,0,0.4)', 1);
+            }
+            for(let r = 1; r < b.rows; r++) {
+                let xPos = b.x + (r * (b.l / b.rows));
+                drawLine(project(xPos, b.y + b.w, b.z), project(xPos, b.y + b.w, b.z + b.h), 'rgba(0,0,0,0.4)', 1);
+            }
+
+            // 3. Top Face
+            drawPolygon([p0z, pxz, pxyz, pyz], b.cTop, 'rgba(0,0,0,0.6)', 1.5);
+            // Internal Grid Lines (Boxes) on Top Face
+            for(let r = 1; r < b.rows; r++) {
+                let xPos = b.x + (r * (b.l / b.rows));
+                drawLine(project(xPos, b.y, b.z + b.h), project(xPos, b.y + b.w, b.z + b.h), 'rgba(0,0,0,0.45)', 1);
+            }
+            for(let c = 1; c < b.cols; c++) {
+                let yPos = b.y + (c * (b.w / b.cols));
+                drawLine(project(b.x, yPos, b.z + b.h), project(b.x + b.l, yPos, b.z + b.h), 'rgba(0,0,0,0.45)', 1);
+            }
+
+            let centerTop = project(b.x + b.l/2, b.y + b.w/2, b.z + b.h);
+            ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
+            let fontSize = Math.max(6, 10 * zoomLevel); 
+            ctx.font = `900 ${fontSize}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            
+            let textWidth = ctx.measureText(b.label).width;
+            ctx.fillStyle = b.isPartial ? 'rgba(255, 255, 255, 0.9)' : 'rgba(15, 23, 42, 0.6)';
+            ctx.fillRect(centerTop.x - (textWidth/2) - 4, centerTop.y - (fontSize/2) - 4, textWidth + 8, fontSize + 8);
+            
+            ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
+            ctx.fillText(b.label, centerTop.x, centerTop.y);
         });
 
         if (placedItems.length > 0) {
@@ -1674,7 +1106,7 @@
             let lZ = project(lashX, 0, drawH); let lYZ = project(lashX, drawW, drawH);
             drawPolygon([l0, lY, lYZ, lZ], 'rgba(249, 115, 22, 0.45)', '#ea580c');
             let lCenter = project(lashX, drawW/2, drawH/2);
-            ctx.fillStyle = '#ea580c'; ctx.font = `bold ${Math.max(6, 11*zoomLevel)}px Inter`; ctx.fillText('SPANSET', lCenter.x, lCenter.y);
+            ctx.fillStyle = '#ea580c'; ctx.font = `bold ${Math.max(8, 11*zoomLevel)}px Inter`; ctx.fillText('SPANSET', lCenter.x, lCenter.y);
         }
     }
 </script>
