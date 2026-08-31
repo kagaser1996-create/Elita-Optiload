@@ -142,14 +142,26 @@
     </div>
 </div>
 
+<!-- 3. ALARM MODAL -->
+<div id="alarmModal" class="hidden fixed inset-0 bg-slate-900 bg-opacity-60 z-50 flex items-center justify-center no-print px-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full border-t-8 border-rose-500 transform transition-all">
+        <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center text-rose-600 font-bold text-xl">!</div>
+            <h3 class="text-xl font-black text-slate-800">Limit Uyarısı</h3>
+        </div>
+        <p id="alarmMessage" class="text-sm font-medium text-slate-600 mb-6 leading-relaxed"></p>
+        <button onclick="document.getElementById('alarmModal').classList.add('hidden')" class="w-full bg-rose-600 hover:bg-rose-700 transition-colors text-white font-bold py-3 px-4 rounded-xl shadow-md">Sistemin Düzeltmesini Onayla</button>
+    </div>
+</div>
+
 <!-- TOP NAVIGATION BAR -->
 <nav class="bg-slate-900 text-white shadow-md rounded-t-xl md:rounded-xl mx-auto max-w-[1400px] w-full z-10 relative no-print mb-4">
     <div class="px-4 md:px-6 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
         <div class="flex items-center gap-3 w-full md:w-auto">
             <div class="w-6 h-6 md:w-8 md:h-8 bg-sky-500 rounded flex items-center justify-center font-black text-lg md:text-xl tracking-tighter">E</div>
             <div>
-                <h1 class="text-lg md:text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">3D OptiLoad</span></h1>
-                <p class="text-[9px] md:text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Gelişmiş Fizik & 3D Yükleme Simülatörü</p>
+                <h1 class="text-lg md:text-xl font-black tracking-tight leading-none">Elita <span class="font-light text-sky-400">OptiLoad</span></h1>
+                <p class="text-[9px] md:text-[10px] text-slate-400 font-semibold tracking-widest uppercase mt-1">Dinamik & Statik Saha Operasyon Planlayıcısı</p>
             </div>
         </div>
 
@@ -940,52 +952,43 @@
         let titleText = "";
         let infiniteMode = false;
 
-        // Dynamic Floor Spread Layer Calculation
-        let globalBestK = 20; 
-        if (baseType === 'floor') {
-            let anyInfinite = false;
-            if (currentMode === 'single') {
-                if ((parseInt(document.getElementById('targetBoxes').value) || 0) <= 0) anyInfinite = true;
-            } else {
-                let allZ = Array.from(document.querySelectorAll('.mixed-val')).every(inp => (parseInt(inp.value) || 0) === 0);
-                if (allZ) anyInfinite = true;
-            }
+        if (currentMode === 'single') {
+            if ((parseInt(document.getElementById('targetBoxes').value) || 0) <= 0) infiniteMode = true;
+        } else {
+            let allZero = Array.from(document.querySelectorAll('.mixed-val')).every(inp => (parseInt(inp.value) || 0) === 0);
+            if (allZero) infiniteMode = true;
+        }
 
-            if (!anyInfinite) {
-                for (let k = 1; k <= 20; k++) {
-                    let totalL = 0;
-                    if (currentMode === 'single') {
-                        const skuObj = skuDatabase[document.getElementById('skuSelect').value];
-                        let tBoxes = parseInt(document.getElementById('targetBoxes').value) || 0;
-                        let c1 = Math.floor(effContW / skuObj.W); let r1 = Math.floor(effContL / skuObj.L);
-                        let c2 = Math.floor(effContW / skuObj.L); let r2 = Math.floor(effContL / skuObj.W);
+        let globalBestK = 20; 
+        if (baseType === 'floor' && !infiniteMode) {
+            for (let k = 1; k <= 20; k++) {
+                let totalL = 0;
+                if (currentMode === 'single') {
+                    const skuObj = skuDatabase[document.getElementById('skuSelect').value];
+                    let tBoxes = parseInt(document.getElementById('targetBoxes').value) || 0;
+                    let c1 = Math.floor(effContW / skuObj.W); let r1 = Math.floor(effContL / skuObj.L);
+                    let c2 = Math.floor(effContW / skuObj.L); let r2 = Math.floor(effContL / skuObj.W);
+                    let cols = ((c2 * r2) > (c1 * r1)) ? c2 : c1;
+                    let actualBoxL = ((c2 * r2) > (c1 * r1)) ? skuObj.W : skuObj.L;
+                    let physMaxLayers = Math.max(1, Math.min(skuObj.maxLayers, Math.floor((contH - 20) / skuObj.H)));
+                    let activeK = Math.min(k, physMaxLayers);
+                    totalL += Math.ceil(tBoxes / (cols * activeK)) * actualBoxL;
+                } else {
+                    document.querySelectorAll('.mixed-row').forEach(r => {
+                        let skuIdx = r.querySelector('.mixed-sku').value;
+                        let tBoxes = parseFloat(r.querySelector('.mixed-val').value) || 0;
+                        if(tBoxes <= 0) return;
+                        const sku = skuDatabase[skuIdx];
+                        let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
+                        let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
                         let cols = ((c2 * r2) > (c1 * r1)) ? c2 : c1;
-                        let actualBoxL = ((c2 * r2) > (c1 * r1)) ? skuObj.W : skuObj.L;
-                        let physMaxLayers = Math.min(skuObj.maxLayers, Math.floor((contH - 20) / skuObj.H));
-                        if (physMaxLayers < 1) physMaxLayers = 1;
+                        let actualBoxL = ((c2 * r2) > (c1 * r1)) ? sku.W : sku.L;
+                        let physMaxLayers = Math.max(1, Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H)));
                         let activeK = Math.min(k, physMaxLayers);
                         totalL += Math.ceil(tBoxes / (cols * activeK)) * actualBoxL;
-                    } else {
-                        document.querySelectorAll('.mixed-row').forEach(r => {
-                            let skuIdx = r.querySelector('.mixed-sku').value;
-                            let tBoxes = parseFloat(r.querySelector('.mixed-val').value) || 0;
-                            if(tBoxes <= 0) return;
-                            const sku = skuDatabase[skuIdx];
-                            let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
-                            let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
-                            let cols = ((c2 * r2) > (c1 * r1)) ? c2 : c1;
-                            let actualBoxL = ((c2 * r2) > (c1 * r1)) ? sku.W : sku.L;
-                            let physMaxLayers = Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H));
-                            if (physMaxLayers < 1) physMaxLayers = 1;
-                            let activeK = Math.min(k, physMaxLayers);
-                            totalL += Math.ceil(tBoxes / (cols * activeK)) * actualBoxL;
-                        });
-                    }
-                    if (totalL <= effContL) {
-                        globalBestK = k;
-                        break;
-                    }
+                    });
                 }
+                if (totalL <= effContL) { globalBestK = k; break; }
             }
         }
 
@@ -994,33 +997,31 @@
             titleText = `Tekil Yük: ${skuObj.name}`;
             document.getElementById('printSkuName').innerText = skuObj.name;
             let targetBoxes = parseInt(document.getElementById('targetBoxes').value) || 0; 
-            if (targetBoxes === 0) infiniteMode = true;
 
             if (baseType === 'floor') {
-                let physMaxLayers = Math.min(skuObj.maxLayers, Math.floor((contH - 20) / skuObj.H));
-                if (physMaxLayers <= 0) physMaxLayers = 1;
+                let physMaxLayers = Math.max(1, Math.min(skuObj.maxLayers, Math.floor((contH - 20) / skuObj.H)));
                 let c1 = Math.floor(effContW / skuObj.W); let r1 = Math.floor(effContL / skuObj.L);
                 let c2 = Math.floor(effContW / skuObj.L); let r2 = Math.floor(effContL / skuObj.W);
                 let isRotated = (c2 * r2) > (c1 * r1);
                 let cols = isRotated ? c2 : c1; let maxRows = isRotated ? r2 : r1;
                 let actualBoxW = isRotated ? skuObj.L : skuObj.W; let actualBoxL = isRotated ? skuObj.W : skuObj.L;
-                let floorFit = cols * 1; 
                 
                 let maxBoxesByWgt = Math.floor(maxWgt / skuObj.Wt);
-                let maxBoxesByVol = floorFit * maxRows * physMaxLayers;
-                let realisticTarget = targetBoxes > 0 ? targetBoxes : Math.min(maxBoxesByVol, maxBoxesByWgt);
+                let maxBoxesByVol = cols * maxRows * physMaxLayers;
+                
+                let realisticTarget = targetBoxes > 0 ? Math.min(targetBoxes, Math.max(maxBoxesByVol, maxBoxesByWgt) * 10) : Math.min(maxBoxesByVol, maxBoxesByWgt);
                 
                 let remaining = realisticTarget;
                 let activeMaxLayers = infiniteMode ? physMaxLayers : Math.min(physMaxLayers, globalBestK);
 
                 while (remaining > 0) {
-                    let boxesInThisRow = Math.min(remaining, floorFit * activeMaxLayers);
-                    let displayLayers = Math.ceil(boxesInThisRow / floorFit);
+                    let boxesInThisRow = Math.min(remaining, cols * activeMaxLayers);
+                    let displayLayers = Math.ceil(boxesInThisRow / cols);
                     let blockW = cols * actualBoxW;
                     
                     itemTypes.push({
                         id: skuObj.name, priority: 0, target: targetBoxes, l: actualBoxL, w: blockW, h: displayLayers * skuObj.H, 
-                        boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: floorFit * activeMaxLayers, boxWt: skuObj.Wt, wgt: boxesInThisRow * skuObj.Wt, isPartial: boxesInThisRow < (floorFit * activeMaxLayers), area: actualBoxL * blockW,
+                        boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: cols * activeMaxLayers, boxWt: skuObj.Wt, wgt: boxesInThisRow * skuObj.Wt, isPartial: boxesInThisRow < (cols * activeMaxLayers), area: actualBoxL * blockW,
                         palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: actualBoxL, actW: blockW, verticalStacks: 1, patternName: 'Dökme İstif', colorSet: colorMap[0],
                         layoutCols: cols, layoutRows: 1, layoutLayers: activeMaxLayers, count: 1, boxOrientation: isRotated
                     });
@@ -1031,7 +1032,7 @@
                 if(pConfig) {
                     let maxBoxesByWgt = Math.floor(maxWgt / skuObj.Wt);
                     let maxBoxesByVol = pConfig.loads * pConfig.boxesPerLoad;
-                    let realisticTarget = targetBoxes > 0 ? targetBoxes : Math.min(maxBoxesByVol, maxBoxesByWgt);
+                    let realisticTarget = targetBoxes > 0 ? Math.min(targetBoxes, Math.max(maxBoxesByVol, maxBoxesByWgt) * 10) : Math.min(maxBoxesByVol, maxBoxesByWgt);
                     let pallets = Math.ceil(realisticTarget / pConfig.boxesPerLoad);
                     for(let k=0; k<pallets; k++) {
                         let b = Math.min(pConfig.boxesPerLoad, realisticTarget - (k*pConfig.boxesPerLoad));
@@ -1048,43 +1049,40 @@
             titleText = "Karma Yük (Sıralı Öncelik)";
             document.getElementById('printSkuName').innerText = "Sıralı Karma Liste";
             
-            let allZero = Array.from(document.querySelectorAll('.mixed-val')).every(inp => (parseInt(inp.value) || 0) === 0);
-            if (allZero) infiniteMode = true; 
-            
             document.querySelectorAll('.mixed-row').forEach((r, idx) => {
                 let skuIdx = r.querySelector('.mixed-sku').value;
                 let targetBoxes = parseFloat(r.querySelector('.mixed-val').value) || 0;
-                if(targetBoxes <= 0 && !infiniteMode) return;
                 
-                if (infiniteMode && idx === 0) targetBoxes = 99999;
-                else if (infiniteMode) return;
-
                 const sku = skuDatabase[skuIdx];
                 let rColorSet = colorMap[idx % colorMap.length];
                 
+                let physMaxLayers = Math.max(1, Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H)));
+                let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
+                let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
+                let isRotated = (c2 * r2) > (c1 * r1);
+                let cols = isRotated ? c2 : c1; let maxRows = isRotated ? r2 : r1;
+                
+                let floorCap = cols * maxRows * physMaxLayers;
+                let wgtCap = Math.floor(maxWgt / sku.Wt);
+                
+                if (infiniteMode && idx === 0) targetBoxes = Math.min(floorCap, wgtCap);
+                else if (infiniteMode || targetBoxes <= 0) return;
+                
+                targetBoxes = Math.min(targetBoxes, Math.max(floorCap, wgtCap) * 10); 
+                
                 if (baseType === 'floor') {
-                    let physMaxLayers = Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H));
-                    if (physMaxLayers <= 0) physMaxLayers = 1;
-
-                    let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
-                    let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
-                    let floorFit = Math.max(c1 * r1, c2 * r2);
-                    let isRotated = (c2 * r2) > (c1 * r1);
-                    let cols = isRotated ? c2 : c1;
                     let actualBoxW = isRotated ? sku.L : sku.W; let actualBoxL = isRotated ? sku.W : sku.L;
-
-                    let floorFitRow = cols * 1; 
                     let remaining = targetBoxes;
                     let activeMaxLayers = infiniteMode ? physMaxLayers : Math.min(physMaxLayers, globalBestK);
                     
                     while (remaining > 0) {
-                        let boxesInThisRow = Math.min(remaining, floorFitRow * activeMaxLayers);
-                        let displayLayers = Math.ceil(boxesInThisRow / floorFitRow);
+                        let boxesInThisRow = Math.min(remaining, cols * activeMaxLayers);
+                        let displayLayers = Math.ceil(boxesInThisRow / cols);
                         let blockW = cols * actualBoxW;
                         
                         itemTypes.push({
                             id: sku.name, priority: idx, target: targetBoxes, count: 1, l: actualBoxL, w: blockW, h: displayLayers * sku.H, 
-                            boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: floorFitRow * activeMaxLayers, boxWt: sku.Wt, wgt: boxesInThisRow * sku.Wt, isPartial: boxesInThisRow < (floorFitRow * activeMaxLayers), area: actualBoxL * blockW,
+                            boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: cols * activeMaxLayers, boxWt: sku.Wt, wgt: boxesInThisRow * sku.Wt, isPartial: boxesInThisRow < (cols * activeMaxLayers), area: actualBoxL * blockW,
                             palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: actualBoxL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
                             layoutCols: cols, layoutRows: 1, layoutLayers: activeMaxLayers, boxOrientation: isRotated
                         });
