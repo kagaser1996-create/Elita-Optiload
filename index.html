@@ -249,7 +249,7 @@
 
             <div class="input-group mb-3 p-3 bg-fuchsia-50 border border-fuchsia-200 rounded-lg hidden" id="targetBoxesGroup">
                 <label class="!text-fuchsia-800 flex items-center justify-between"><span>Hedef Koli (Tasarım)</span></label>
-                <input type="number" id="targetBoxes" value="0" placeholder="0 = Tırı Tamamen Doldur" class="bg-white border-fuchsia-300" oninput="debouncedRunEngine()">
+                <input type="number" id="targetBoxes" value="0" placeholder="0 = Tamamen Doldur" class="bg-white border-fuchsia-300" oninput="debouncedRunEngine()">
             </div>
 
             <div class="section-header">Taşıma Tabanı</div>
@@ -952,43 +952,50 @@
         let titleText = "";
         let infiniteMode = false;
 
-        if (currentMode === 'single') {
-            if ((parseInt(document.getElementById('targetBoxes').value) || 0) <= 0) infiniteMode = true;
-        } else {
-            let allZero = Array.from(document.querySelectorAll('.mixed-val')).every(inp => (parseInt(inp.value) || 0) === 0);
-            if (allZero) infiniteMode = true;
-        }
-
+        // Dynamic Floor Spread Layer Calculation
         let globalBestK = 20; 
-        if (baseType === 'floor' && !infiniteMode) {
-            for (let k = 1; k <= 20; k++) {
-                let totalL = 0;
-                if (currentMode === 'single') {
-                    const skuObj = skuDatabase[document.getElementById('skuSelect').value];
-                    let tBoxes = parseInt(document.getElementById('targetBoxes').value) || 0;
-                    let c1 = Math.floor(effContW / skuObj.W); let r1 = Math.floor(effContL / skuObj.L);
-                    let c2 = Math.floor(effContW / skuObj.L); let r2 = Math.floor(effContL / skuObj.W);
-                    let cols = ((c2 * r2) > (c1 * r1)) ? c2 : c1;
-                    let actualBoxL = ((c2 * r2) > (c1 * r1)) ? skuObj.W : skuObj.L;
-                    let physMaxLayers = Math.max(1, Math.min(skuObj.maxLayers, Math.floor((contH - 20) / skuObj.H)));
-                    let activeK = Math.min(k, physMaxLayers);
-                    totalL += Math.ceil(tBoxes / (cols * activeK)) * actualBoxL;
-                } else {
-                    document.querySelectorAll('.mixed-row').forEach(r => {
-                        let skuIdx = r.querySelector('.mixed-sku').value;
-                        let tBoxes = parseFloat(r.querySelector('.mixed-val').value) || 0;
-                        if(tBoxes <= 0) return;
-                        const sku = skuDatabase[skuIdx];
-                        let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
-                        let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
+        if (baseType === 'floor') {
+            let anyInfinite = false;
+            if (currentMode === 'single') {
+                if ((parseInt(document.getElementById('targetBoxes').value) || 0) <= 0) anyInfinite = true;
+            } else {
+                let allZ = Array.from(document.querySelectorAll('.mixed-val')).every(inp => (parseInt(inp.value) || 0) === 0);
+                if (allZ) anyInfinite = true;
+            }
+
+            if (!anyInfinite) {
+                for (let k = 1; k <= 20; k++) {
+                    let totalL = 0;
+                    if (currentMode === 'single') {
+                        const skuObj = skuDatabase[document.getElementById('skuSelect').value];
+                        let tBoxes = parseInt(document.getElementById('targetBoxes').value) || 0;
+                        let c1 = Math.floor(effContW / skuObj.W); let r1 = Math.floor(effContL / skuObj.L);
+                        let c2 = Math.floor(effContW / skuObj.L); let r2 = Math.floor(effContL / skuObj.W);
                         let cols = ((c2 * r2) > (c1 * r1)) ? c2 : c1;
-                        let actualBoxL = ((c2 * r2) > (c1 * r1)) ? sku.W : sku.L;
-                        let physMaxLayers = Math.max(1, Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H)));
+                        let actualBoxL = ((c2 * r2) > (c1 * r1)) ? skuObj.W : skuObj.L;
+                        let physMaxLayers = Math.max(1, Math.min(skuObj.maxLayers, Math.floor((contH - 20) / skuObj.H)));
                         let activeK = Math.min(k, physMaxLayers);
                         totalL += Math.ceil(tBoxes / (cols * activeK)) * actualBoxL;
-                    });
+                    } else {
+                        document.querySelectorAll('.mixed-row').forEach(r => {
+                            let skuIdx = r.querySelector('.mixed-sku').value;
+                            let tBoxes = parseFloat(r.querySelector('.mixed-val').value) || 0;
+                            if(tBoxes <= 0) return;
+                            const sku = skuDatabase[skuIdx];
+                            let c1 = Math.floor(effContW / sku.W); let r1 = Math.floor(effContL / sku.L);
+                            let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
+                            let cols = ((c2 * r2) > (c1 * r1)) ? c2 : c1;
+                            let actualBoxL = ((c2 * r2) > (c1 * r1)) ? sku.W : sku.L;
+                            let physMaxLayers = Math.max(1, Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H)));
+                            let activeK = Math.min(k, physMaxLayers);
+                            totalL += Math.ceil(tBoxes / (cols * activeK)) * actualBoxL;
+                        });
+                    }
+                    if (totalL <= effContL) {
+                        globalBestK = k;
+                        break;
+                    }
                 }
-                if (totalL <= effContL) { globalBestK = k; break; }
             }
         }
 
@@ -997,6 +1004,7 @@
             titleText = `Tekil Yük: ${skuObj.name}`;
             document.getElementById('printSkuName').innerText = skuObj.name;
             let targetBoxes = parseInt(document.getElementById('targetBoxes').value) || 0; 
+            if (targetBoxes === 0) infiniteMode = true;
 
             if (baseType === 'floor') {
                 let physMaxLayers = Math.max(1, Math.min(skuObj.maxLayers, Math.floor((contH - 20) / skuObj.H)));
@@ -1005,6 +1013,8 @@
                 let isRotated = (c2 * r2) > (c1 * r1);
                 let cols = isRotated ? c2 : c1; let maxRows = isRotated ? r2 : r1;
                 let actualBoxW = isRotated ? skuObj.L : skuObj.W; let actualBoxL = isRotated ? skuObj.W : skuObj.L;
+                
+                if (cols <= 0) { alert("Bu ürün araç genişliğine sığmıyor."); return; }
                 
                 let maxBoxesByWgt = Math.floor(maxWgt / skuObj.Wt);
                 let maxBoxesByVol = cols * maxRows * physMaxLayers;
@@ -1016,14 +1026,17 @@
 
                 while (remaining > 0) {
                     let boxesInThisRow = Math.min(remaining, cols * activeMaxLayers);
+                    if (boxesInThisRow <= 0) break; 
+                    
                     let displayLayers = Math.ceil(boxesInThisRow / cols);
                     let blockW = cols * actualBoxW;
                     
                     itemTypes.push({
-                        id: skuObj.name, priority: 0, target: targetBoxes, l: actualBoxL, w: blockW, h: displayLayers * skuObj.H, 
+                        id: skuObj.name, priority: 0, target: targetBoxes, count: 1, 
+                        l: actualBoxL, w: blockW, h: displayLayers * skuObj.H, boxH: skuObj.H,
                         boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: cols * activeMaxLayers, boxWt: skuObj.Wt, wgt: boxesInThisRow * skuObj.Wt, isPartial: boxesInThisRow < (cols * activeMaxLayers), area: actualBoxL * blockW,
                         palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: actualBoxL, actW: blockW, verticalStacks: 1, patternName: 'Dökme İstif', colorSet: colorMap[0],
-                        layoutCols: cols, layoutRows: 1, layoutLayers: activeMaxLayers, count: 1, boxOrientation: isRotated
+                        layoutCols: cols, layoutRows: 1, layoutLayers: activeMaxLayers, boxOrientation: isRotated
                     });
                     remaining -= boxesInThisRow;
                 }
@@ -1037,10 +1050,11 @@
                     for(let k=0; k<pallets; k++) {
                         let b = Math.min(pConfig.boxesPerLoad, realisticTarget - (k*pConfig.boxesPerLoad));
                         itemTypes.push({
-                            id: skuObj.name, priority: 0, target: targetBoxes, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, 
+                            id: skuObj.name, priority: 0, target: targetBoxes, count: 1, 
+                            l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxH: pConfig.boxH, displayLayers: pConfig.displayLayers,
                             boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: skuObj.Wt, wgt: (b * skuObj.Wt) + (baseType==='pallet'?25:0), area: pConfig.patL * pConfig.patW,
                             palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, 
-                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0], count: 1, boxOrientation: pConfig.isRotated
+                            verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: colorMap[0], boxOrientation: pConfig.isRotated
                         });
                     }
                 }
@@ -1048,6 +1062,9 @@
         } else {
             titleText = "Karma Yük (Sıralı Öncelik)";
             document.getElementById('printSkuName').innerText = "Sıralı Karma Liste";
+            
+            let allZero = Array.from(document.querySelectorAll('.mixed-val')).every(inp => (parseInt(inp.value) || 0) === 0);
+            if (allZero) infiniteMode = true; 
             
             document.querySelectorAll('.mixed-row').forEach((r, idx) => {
                 let skuIdx = r.querySelector('.mixed-sku').value;
@@ -1061,6 +1078,8 @@
                 let c2 = Math.floor(effContW / sku.L); let r2 = Math.floor(effContL / sku.W);
                 let isRotated = (c2 * r2) > (c1 * r1);
                 let cols = isRotated ? c2 : c1; let maxRows = isRotated ? r2 : r1;
+                
+                if (cols <= 0) return;
                 
                 let floorCap = cols * maxRows * physMaxLayers;
                 let wgtCap = Math.floor(maxWgt / sku.Wt);
@@ -1077,11 +1096,14 @@
                     
                     while (remaining > 0) {
                         let boxesInThisRow = Math.min(remaining, cols * activeMaxLayers);
+                        if (boxesInThisRow <= 0) break;
+                        
                         let displayLayers = Math.ceil(boxesInThisRow / cols);
                         let blockW = cols * actualBoxW;
                         
                         itemTypes.push({
-                            id: sku.name, priority: idx, target: targetBoxes, count: 1, l: actualBoxL, w: blockW, h: displayLayers * sku.H, 
+                            id: sku.name, priority: idx, target: targetBoxes, count: 1, 
+                            l: actualBoxL, w: blockW, h: displayLayers * sku.H, boxH: sku.H,
                             boxes: boxesInThisRow, displayLayers: displayLayers, boxesPerUnit: cols * activeMaxLayers, boxWt: sku.Wt, wgt: boxesInThisRow * sku.Wt, isPartial: boxesInThisRow < (cols * activeMaxLayers), area: actualBoxL * blockW,
                             palletBlocks: [{x: 0, y: 0, l: actualBoxL, w: actualBoxW, rows: 1, cols: cols}], actL: actualBoxL, actW: blockW, verticalStacks: 1, patternName: 'Zemin Sırası', colorSet: rColorSet,
                             layoutCols: cols, layoutRows: 1, layoutLayers: activeMaxLayers, boxOrientation: isRotated
@@ -1094,7 +1116,11 @@
                         let pallets = Math.ceil(targetBoxes / pConfig.boxesPerLoad);
                         for(let k=0; k<pallets; k++) {
                             let b = Math.min(pConfig.boxesPerLoad, targetBoxes - (k*pConfig.boxesPerLoad));
-                            itemTypes.push({ id: sku.name, priority: idx, target: targetBoxes, count: 1, l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: sku.Wt, wgt: (b * sku.Wt) + (baseType==='pallet'?25:0), isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: rColorSet, boxOrientation: pConfig.isRotated });
+                            itemTypes.push({ 
+                                id: sku.name, priority: idx, target: targetBoxes, count: 1, 
+                                l: pConfig.patL, w: pConfig.patW, h: pConfig.totalHeight, boxH: pConfig.boxH, displayLayers: pConfig.displayLayers,
+                                boxes: b, boxesPerUnit: pConfig.boxesPerLoad, boxWt: sku.Wt, wgt: (b * sku.Wt) + (baseType==='pallet'?25:0), isPartial: b < pConfig.boxesPerLoad, area: pConfig.patL * pConfig.patW, palletBlocks: pConfig.palletBlocks, actL: pConfig.actL, actW: pConfig.actW, verticalStacks: 1, patternName: pConfig.boxPatternName, colorSet: rColorSet, boxOrientation: pConfig.isRotated 
+                            });
                         }
                     }
                 }
@@ -1139,24 +1165,24 @@
             let isStraight = (c1*r1) >= (c2*r2); let layerBoxes = isStraight ? (c1*r1) : (c2*r2);
             if (layerBoxes <= 0) return;
 
-            let maxL = Math.min(box.maxLayers, Math.floor((contH - (baseType==='pallet'?200:20))/box.H));
-            if (maxL > 0) {
-                let totalBoxes = layerBoxes * maxL;
-                const contL = parseInt(document.getElementById('contL').value) - 100;
-                let fitStraight = Math.floor(contL / sheet.l) * Math.floor(2420 / sheet.w);
-                let fitRotated = Math.floor(contL / sheet.w) * Math.floor(2420 / sheet.l);
-                let totalPals = Math.max(fitStraight, fitRotated);
-                
-                if (!bestConfig || totalBoxes > bestConfig.boxesPerLoad) {
-                    bestConfig = {
-                        patL: sheet.l, patW: sheet.w, boxesPerLoad: totalBoxes, loads: totalPals,
-                        actL: isStraight ? c1*box.L : c2*box.W, actW: isStraight ? r1*box.W : r2*box.L,
-                        palletBlocks: isStraight ? [{x:0, y:0, l:box.L, w:box.W, cols:c1, rows:r1}] : [{x:0, y:0, l:box.W, w:box.L, cols:c2, rows:r2}], 
-                        boxPatternName: isStraight ? 'Düz Dizilim' : 'Döndürülmüş Dizilim',
-                        totalHeight: (maxL * box.H) + (baseType==='pallet'?150:0),
-                        isRotated: !isStraight
-                    };
-                }
+            let maxL = Math.max(1, Math.min(box.maxLayers, Math.floor((contH - (baseType==='pallet'?200:20))/box.H)));
+            
+            let totalBoxes = layerBoxes * maxL;
+            const contL = parseInt(document.getElementById('contL').value) - 100;
+            let fitStraight = Math.floor(contL / sheet.l) * Math.floor(2420 / sheet.w);
+            let fitRotated = Math.floor(contL / sheet.w) * Math.floor(2420 / sheet.l);
+            let totalPals = Math.max(fitStraight, fitRotated);
+            
+            if (!bestConfig || totalBoxes > bestConfig.boxesPerLoad) {
+                bestConfig = {
+                    patL: sheet.l, patW: sheet.w, boxesPerLoad: totalBoxes, loads: totalPals,
+                    actL: isStraight ? c1*box.L : c2*box.W, actW: isStraight ? r1*box.W : r2*box.L,
+                    palletBlocks: isStraight ? [{x:0, y:0, l:box.L, w:box.W, cols:c1, rows:r1}] : [{x:0, y:0, l:box.W, w:box.L, cols:c2, rows:r2}], 
+                    boxPatternName: isStraight ? 'Düz Dizilim' : 'Döndürülmüş Dizilim',
+                    totalHeight: (maxL * box.H) + (baseType==='pallet'?150:0),
+                    isRotated: !isStraight,
+                    boxH: box.H, displayLayers: maxL
+                };
             }
         });
         return bestConfig;
@@ -1184,8 +1210,8 @@
 
                         item.boxes = allowBoxes; item.wgt = (allowBoxes * item.boxWt) + baseTare; item.isPartial = true; 
                         item.rejectReason = "Araç ağırlık limiti (" + maxWgt + " kg) sınırına ulaşıldı. Kalanlar sonraki araca aktarıldı.";
-                    } else { item.rejectReason = "Ağırlık limiti doldu."; remainingQueue.push(item); continue; } 
-                } else { item.rejectReason = "Ağırlık limiti doldu."; remainingQueue.push(item); continue; } 
+                    } else { item.rejectReason = "Ağırlık limiti doldu."; remainingQueue.push(item); break; } 
+                } else { item.rejectReason = "Ağırlık limiti doldu."; remainingQueue.push(item); break; } 
             }
 
             let bestNode = { rectIdx: -1, isRotated: false, score1: Infinity, score2: Infinity, x: -1, y: -1 };
@@ -1205,7 +1231,7 @@
 
             if (bestNode.rectIdx !== -1) {
                 let pL = bestNode.isRotated ? item.w : item.l; let pW = bestNode.isRotated ? item.l : item.w;
-                placedItems.push({ x: bestNode.x, y: bestNode.y, z: 0, l: pL, w: pW, h: item.h, id: item.id, target: item.target, boxes: item.boxes, displayLayers: item.displayLayers, boxesPerUnit: item.boxesPerUnit, wgt: item.wgt, isPartial: item.isPartial, isRotated: bestNode.isRotated, palletBlocks: item.palletBlocks, actL: item.actL, actW: item.actW, verticalStacks: item.verticalStacks, patternName: item.patternName, colorSet: item.colorSet, priority: item.priority, layoutCols: item.layoutCols, layoutRows: item.layoutRows, layoutLayers: item.layoutLayers, rejectReason: item.rejectReason, boxOrientation: item.boxOrientation });
+                placedItems.push({ x: bestNode.x, y: bestNode.y, z: 0, l: pL, w: pW, h: item.h, boxH: item.boxH, id: item.id, target: item.target, boxes: item.boxes, displayLayers: item.displayLayers, boxesPerUnit: item.boxesPerUnit, wgt: item.wgt, isPartial: item.isPartial, isRotated: bestNode.isRotated, palletBlocks: item.palletBlocks, actL: item.actL, actW: item.actW, verticalStacks: item.verticalStacks, patternName: item.patternName, colorSet: item.colorSet, priority: item.priority, layoutCols: item.layoutCols, layoutRows: item.layoutRows, layoutLayers: item.layoutLayers, rejectReason: item.rejectReason, boxOrientation: item.boxOrientation });
                 totalWgt += item.wgt; totalBoxes += item.boxes;
                 splitFreeRects(freeRects, bestNode.x, bestNode.y, pL, pW);
             } else {
@@ -1467,12 +1493,12 @@
             });
         }, 50);
 
-        lastRenderData = { placedItems: result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX };
+        lastRenderData = { placedItems: result.placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX, baseType };
         performRender(lastRenderData);
     }
 
     function performRender(data) {
-        const { placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX } = data;
+        const { placedItems, contL, contW, contH, optFrontCurve, titleText, useAirbag, useLashing, cogX, baseType } = data;
         const canvas = document.getElementById('contCanvas'); 
         if(!canvas) return;
         
@@ -1496,11 +1522,61 @@
         let totalLoadL = maxX - minX; let totalLoadW = maxY - minY; 
         let offsetY = ((contW - 10) - totalLoadW) / 2; 
 
+        // Generate individual boxes for the 3D Engine
         let blocks3D = [];
+        
         placedItems.forEach(item => {
             let py = offsetY + (item.y - minY);
-            let lbl = `${item.boxes} Koli`;
-            blocks3D.push({ x: item.x, y: py, z: 0, l: item.l, w: item.w, h: item.h, cTop: item.colorSet.top, cRight: item.colorSet.right, cLeft: item.colorSet.left, label: lbl, isPartial: item.isPartial });
+            let pBaseH = 0;
+            
+            // Draw Pallet Base if required
+            if (baseType !== 'floor') {
+                pBaseH = baseType === 'pallet' ? 150 : 20;
+                blocks3D.push({ 
+                    x: item.x, y: py, z: 0, l: item.l, w: item.w, h: pBaseH, 
+                    cTop: '#cbd5e1', cRight: '#94a3b8', cLeft: '#64748b', 
+                    label: '', isPartial: false, isPallet: true 
+                });
+            }
+
+            let bCount = 0;
+            let pb = item.palletBlocks[0];
+            let totalLayers = item.displayLayers || Math.ceil(item.boxes / (pb.cols * pb.rows));
+            
+            let loadL = pb.rows * pb.l;
+            let loadW = pb.cols * pb.w;
+            let cx = item.x + (item.l - loadL) / 2;
+            let cy = py + (item.w - loadW) / 2;
+            
+            let singleBoxH = item.boxH || (item.h / totalLayers);
+
+            for (let z = 0; z < totalLayers; z++) {
+                for (let r = 0; r < pb.rows; r++) {
+                    for (let c = 0; c < pb.cols; c++) {
+                        if (bCount >= item.boxes) break;
+                        
+                        let bx = cx + (r * pb.l);
+                        let by = cy + (c * pb.w);
+                        let bz = pBaseH + (z * singleBoxH);
+                        
+                        let drawLbl = "";
+                        // Only draw label on the top center box of the block
+                        if (z === totalLayers - 1 && r === Math.floor(pb.rows/2) && c === Math.floor(pb.cols/2)) {
+                            drawLbl = item.isPartial ? `⚠️ ${item.boxes} Koli` : `${item.boxes} Koli`;
+                        }
+                        if (bCount === item.boxes - 1 && z !== totalLayers - 1 && !drawLbl) {
+                            drawLbl = `⚠️ ${item.boxes} Koli`;
+                        }
+
+                        blocks3D.push({ 
+                            x: bx, y: by, z: bz, l: pb.l, w: pb.w, h: singleBoxH, 
+                            cTop: item.colorSet.top, cRight: item.colorSet.right, cLeft: item.colorSet.left, 
+                            label: drawLbl, isPartial: item.isPartial, isPallet: false 
+                        });
+                        bCount++;
+                    }
+                }
+            }
         });
 
         let drawL = contL; let drawW = contW; let drawH = contH;
@@ -1529,7 +1605,7 @@
             return { x: cx + panX + (u - uCenter) * activeScale, y: cy + panY + (v - vCenter) * activeScale };
         }
 
-        function drawPolygon(pts, color, strokeColor = 'rgba(0,0,0,0.15)') {
+        function drawPolygon(pts, color, strokeColor = 'rgba(0,0,0,0.3)') {
             ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
             for(let i=1; i<pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
             ctx.closePath(); ctx.fillStyle = color; ctx.fill(); ctx.strokeStyle = strokeColor; ctx.stroke();
@@ -1542,13 +1618,13 @@
         let wXZ = project(drawL, 0, drawH); 
         let wYZ = project(0, drawW, drawH);
         
-        drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155'); 
-        drawPolygon([w0, wX, wXZ, wZ], '#1e293b'); 
-        drawPolygon([w0, wY, wYZ, wZ], '#0f172a'); 
+        drawPolygon([w0, wX, project(drawL, drawW, 0), wY], '#334155', '#1e293b'); 
+        drawPolygon([w0, wX, wXZ, wZ], '#1e293b', '#0f172a'); 
+        drawPolygon([w0, wY, wYZ, wZ], '#0f172a', '#020617'); 
         
         if (optFrontCurve) {
             let b0 = project(0,0,0); let bX = project(100,0,0); let bY = project(0,drawW,0); let bXY = project(100,drawW,0);
-            drawPolygon([b0, bX, bXY, bY], 'rgba(234, 179, 8, 0.4)');
+            drawPolygon([b0, bX, bXY, bY], 'rgba(234, 179, 8, 0.4)', '#ca8a04');
         }
 
         blocks3D.sort((a,b) => (a.x + a.y + a.z) - (b.x + b.y + b.z));
@@ -1563,21 +1639,24 @@
             let pyz = project(b.x, b.y + b.w, b.z + b.h);
             let pxyz = project(b.x + b.l, b.y + b.w, b.z + b.h);
 
-            drawPolygon([px, pxy, pxyz, pxz], b.cRight); 
-            drawPolygon([py, pxy, pxyz, pyz], b.cLeft);  
-            drawPolygon([p0z, pxz, pxyz, pyz], b.cTop);  
+            let boxStroke = b.isPallet ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.3)';
 
-            let centerTop = project(b.x + b.l/2, b.y + b.w/2, b.z + b.h);
-            ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
-            let fontSize = Math.max(6, 10 * zoomLevel); 
-            ctx.font = `900 ${fontSize}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            
-            let textWidth = ctx.measureText(b.label).width;
-            ctx.fillStyle = b.isPartial ? 'rgba(255, 255, 255, 0.9)' : 'rgba(15, 23, 42, 0.6)';
-            ctx.fillRect(centerTop.x - (textWidth/2) - 4, centerTop.y - (fontSize/2) - 4, textWidth + 8, fontSize + 8);
-            
-            ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
-            ctx.fillText(b.label, centerTop.x, centerTop.y);
+            drawPolygon([px, pxy, pxyz, pxz], b.cRight, boxStroke); 
+            drawPolygon([py, pxy, pxyz, pyz], b.cLeft, boxStroke);  
+            drawPolygon([p0z, pxz, pxyz, pyz], b.cTop, boxStroke);  
+
+            if (b.label) {
+                let centerTop = project(b.x + b.l/2, b.y + b.w/2, b.z + b.h);
+                let fontSize = Math.max(7, 11 * zoomLevel); 
+                ctx.font = `900 ${fontSize}px Inter`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                
+                let textWidth = ctx.measureText(b.label).width;
+                ctx.fillStyle = b.isPartial ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.7)';
+                ctx.fillRect(centerTop.x - (textWidth/2) - 4, centerTop.y - (fontSize/2) - 4, textWidth + 8, fontSize + 8);
+                
+                ctx.fillStyle = b.isPartial ? '#e11d48' : '#ffffff';
+                ctx.fillText(b.label, centerTop.x, centerTop.y);
+            }
         });
 
         if (placedItems.length > 0) {
