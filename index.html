@@ -173,7 +173,6 @@
                     <span id="userEmailLabel" class="text-slate-300 font-medium hidden sm:inline">user@mail.com</span>
                 </div>
                 
-                <!-- DASHBOARD WITH BUBBLE BADGE COUNTER -->
                 <button id="btnDashboard" onclick="openDashboard()" class="hidden relative bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
                     📥 Talepler
                     <span id="pendingBadgeBubble" class="hidden absolute -top-1.5 -right-1.5 bg-rose-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-md animate-pulse">0</span>
@@ -397,6 +396,15 @@
         { base: '#ea580c', top: '#fb923c', right: '#c2410c', left: '#9a3412' }
     ];
 
+    const SUPABASE_URL = 'https://dehkapuazhvgygbvklbe.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlaGthcHVhemh2Z3lnYnZrbGJlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0Nzg1MDUsImV4cCI6MjEwMzA1NDUwNX0.iGqmAZa57Gc1jwh9KoMyOXywQW7ZunPGmFn_S-GkW1o';
+
+    let supabaseClient = null;
+    let currentUser = null;
+    let currentUserProfile = null;
+    let authMode = 'login';
+    let currentSimulationId = null;
+
     let currentMode = 'single';
     let globalFleet = [];
     let currentVehicleIdx = 0;
@@ -410,19 +418,29 @@
     let initialPinchDist = null;
     let lastRenderData = null;
 
-    window.addEventListener('DOMContentLoaded', () => {
+    // ==========================================
+    // INITIALIZATION LIFECYCLE (ALWAYS RUNS)
+    // ==========================================
+    function initApp() {
         if (window.supabase) {
-            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            supabaseClient.auth.getSession().then(({ data: { session } }) => {
-                if (session) handleAuthChange(session.user);
-            });
-            supabaseClient.auth.onAuthStateChange((_event, session) => {
-                handleAuthChange(session?.user || null);
-            });
+            try {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                    if (session) handleAuthChange(session.user);
+                });
+                supabaseClient.auth.onAuthStateChange((_event, session) => {
+                    handleAuthChange(session?.user || null);
+                });
+            } catch (e) {
+                console.error("Supabase client error:", e);
+            }
         }
 
         populateSelects();
-        document.getElementById('skuSelect').value = "29"; // 5*4 KARE
+        const skuSel = document.getElementById('skuSelect');
+        if (skuSel && skuSel.options.length > 29) {
+            skuSel.value = "29"; // 5*4 KARE default
+        }
         populateSKU();
         addMixedRowWithCount(11, 400);
         addMixedRowWithCount(29, 200);
@@ -430,8 +448,14 @@
         handleBaseChange();
         initCanvasInteractions();
         autoSyncSingleTargetCapacity();
-        debouncedRunEngine();
-    });
+        runEngine();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+        initApp();
+    }
 
     function debouncedRunEngine() {
         clearTimeout(debounceTimer);
@@ -486,7 +510,7 @@
         errLabel.classList.add('hidden');
         
         if (!supabaseClient) { 
-            errLabel.innerText = "Veritabanı bağlantısı yok. Lütfen sayfayı yenileyin."; 
+            errLabel.innerText = "Veritabanı bağlantısı kurulamadı."; 
             errLabel.classList.remove('hidden'); 
             return; 
         }
@@ -538,12 +562,12 @@
     }
 
     function applyRolePermissions() {
-        const role = currentUserProfile.role || 'sales';
+        const role = currentUserProfile?.role || 'sales';
         const roleBadge = document.getElementById('userRoleBadge');
         const btnSales = document.getElementById('btnSubmitSales');
         const dashBtn = document.getElementById('btnDashboard');
         
-        document.getElementById('userEmailLabel').innerText = currentUserProfile.full_name || currentUser.email;
+        document.getElementById('userEmailLabel').innerText = currentUserProfile?.full_name || currentUser?.email || 'Kullanıcı';
 
         btnSales.classList.add('hidden'); dashBtn.classList.add('hidden');
 
@@ -621,8 +645,8 @@
             payload.sales_email = currentUser.email;
             payload.sales_name = currentUserProfile.full_name || 'Satış Temsilcisi';
         } else {
-            payload.logistics_email = currentUser.email;
-            payload.logistics_name = currentUserProfile.full_name || 'Lojistik Yetkilisi';
+            payload.logistics_email = currentUser?.email || 'user@elita.com';
+            payload.logistics_name = currentUserProfile?.full_name || 'Lojistik Yetkilisi';
         }
 
         let dbError = null;
@@ -828,17 +852,35 @@
         }
 
         document.getElementById('targetBoxes').value = singleTruckMaxBoxes;
-        document.getElementById('capacityHintBadge').innerText = `1 Araç = ${singleTruckMaxBoxes} Koli`;
+        const badge = document.getElementById('capacityHintBadge');
+        if (badge) badge.innerText = `1 Araç = ${singleTruckMaxBoxes} Koli`;
+    }
+
+    function switchTab(mode) {
+        currentMode = mode;
+        document.getElementById('tab-single').className = mode === 'single' ? 'tab-btn active text-sm text-center py-3' : 'tab-btn text-sm text-slate-500 text-center py-3';
+        document.getElementById('tab-mixed').className = mode === 'mixed' ? 'tab-btn active text-sm text-center py-3' : 'tab-btn text-sm text-slate-500 text-center py-3';
+        document.getElementById('panel-single').style.display = mode === 'single' ? 'block' : 'none';
+        document.getElementById('panel-mixed').style.display = mode === 'mixed' ? 'block' : 'none';
+        debouncedRunEngine();
+    }
+
+    function handleBaseChange() {
+        const bt = document.getElementById('baseType').value;
+        document.getElementById('palletDropdownGroup').style.display = (bt === 'pallet' || bt === 'slipsheet') ? 'block' : 'none';
     }
 
     function populateSelects() {
         const select = document.getElementById('skuSelect');
+        if (!select) return;
         select.innerHTML = "";
         skuDatabase.forEach((sku, idx) => select.options.add(new Option(`${sku.name} (${sku.L}x${sku.W}x${sku.H})`, idx)));
     }
 
     function populateSKU() {
-        const idx = parseInt(document.getElementById('skuSelect').value) || 0;
+        const skuSelect = document.getElementById('skuSelect');
+        if (!skuSelect) return;
+        const idx = parseInt(skuSelect.value) || 0;
         const sku = skuDatabase[idx];
         if (!sku) return;
         document.getElementById('boxL').value = sku.L;
@@ -865,6 +907,8 @@
     }
 
     function addMixedRowWithCount(prefillIdx, prefillCount) {
+        const list = document.getElementById('mixedList');
+        if (!list) return;
         const div = document.createElement('div');
         div.className = "flex gap-2 items-center mixed-row mb-1 p-1 bg-white border border-slate-200 rounded shadow-sm";
         let options = skuDatabase.map((s, i) => `<option value="${i}" ${i === prefillIdx ? 'selected' : ''}>${s.name}</option>`).join('');
@@ -874,7 +918,7 @@
             <input type="number" class="w-[35%] p-1.5 border rounded text-xs mixed-val font-bold text-sky-700" placeholder="Adet" value="${prefillCount}" oninput="debouncedRunEngine()">
             <button onclick="if(document.querySelectorAll('.mixed-row').length>1){this.parentElement.remove(); debouncedRunEngine();}" class="text-rose-500 font-bold px-2 py-1">✕</button>
         `;
-        document.getElementById('mixedList').appendChild(div);
+        list.appendChild(div);
     }
     function addNewMixedRow() { addMixedRowWithCount(0, 100); debouncedRunEngine(); }
 
@@ -1122,7 +1166,7 @@
         let momentX = 0;
         truck.placedItems.forEach(p => { momentX += (p.x + p.l/2) * p.wgt; });
         let cogX = truck.totalWgt > 0 ? (momentX / truck.totalWgt) : 0;
-        let weightPct = Math.min(100, Math.round((truck.totalWgt / ctx.maxWgt) * 100));
+        let weightPct = Math.min(100, Math.round((truck.totalWgt / (ctx.maxWgt || 25000)) * 100));
 
         document.getElementById('resStatus').innerText = weightPct >= 99 ? `⚠️ Ağırlık Sınırında (CoG: ${(cogX/1000).toFixed(1)}m)` : `Optimum (CoG: ${(cogX/1000).toFixed(1)}m)`;
         document.getElementById('resStatus').className = weightPct >= 99 ? "text-xs md:text-sm font-bold text-rose-600 mt-1" : "text-xs md:text-sm font-bold text-emerald-600 mt-1";
@@ -1270,6 +1314,7 @@
     // ==========================================
     function initCanvasInteractions() {
         const canvas = document.getElementById('contCanvas');
+        if (!canvas) return;
 
         canvas.addEventListener('mousedown', (e) => { 
             isDragging = true; 
