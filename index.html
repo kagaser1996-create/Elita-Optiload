@@ -95,7 +95,7 @@
 
 <!-- 2. INBOX / DASHBOARD MODAL -->
 <div id="adminDashboardModal" class="hidden fixed inset-0 bg-slate-900/80 z-40 flex items-center justify-center p-4 no-print">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-[1050px] w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-[1100px] w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
         <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <span class="text-lg">📥</span>
@@ -106,15 +106,15 @@
         <div class="p-4 md:p-6 overflow-y-auto flex-grow custom-scrollbar">
             <div id="dashboardLoading" class="text-center text-slate-400 py-8 font-semibold">Kayıtlar yükleniyor, lütfen bekleyin...</div>
             <div class="overflow-x-auto">
-                <table id="dashboardTable" class="w-full text-left text-xs bg-white rounded border border-slate-200 hidden min-w-[700px]">
+                <table id="dashboardTable" class="w-full text-left text-xs bg-white rounded border border-slate-200 hidden min-w-[750px]">
                     <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b">
                         <tr>
                             <th class="p-3">Tarih</th>
                             <th class="p-3">Durum</th>
                             <th class="p-3">Satış Temsilcisi</th>
                             <th class="p-3">Araç & Yük</th>
-                            <th class="p-3">Açıklama / Not</th>
-                            <th class="p-3 text-center">İşlem / Karar</th>
+                            <th class="p-3">Son Not / Gerekçe</th>
+                            <th class="p-3 text-center">İşlem & Karar</th>
                         </tr>
                     </thead>
                     <tbody id="dashboardTableBody" class="divide-y divide-slate-100"></tbody>
@@ -136,7 +136,7 @@
         
         <div class="mb-4" id="reviewReasonContainer">
             <label class="text-xs font-bold text-slate-700 uppercase mb-1 block" id="reviewReasonLabel">Gerekçe / Açıklama:</label>
-            <textarea id="reviewReasonInput" rows="3" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-indigo-500 outline-none" placeholder="Lütfen detaylı bir açıklama yazın..."></textarea>
+            <textarea id="reviewReasonInput" rows="3" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-indigo-500 outline-none" placeholder="Lütfen detaylı açıklama girin..."></textarea>
         </div>
 
         <div class="flex gap-2">
@@ -402,15 +402,167 @@
     let currentVehicleIdx = 0;
     let globalEngineContext = {};
     let debounceTimer;
+    let isUserDefinedTarget = false;
 
     // Pan & Zoom
     let panX = 0, panY = 0, zoomLevel = 1;
     let isDragging = false, startX = 0, startY = 0;
+    let initialPinchDist = null;
     let lastRenderData = null;
 
+    window.addEventListener('DOMContentLoaded', () => {
+        if (window.supabase) {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                if (session) handleAuthChange(session.user);
+            });
+            supabaseClient.auth.onAuthStateChange((_event, session) => {
+                handleAuthChange(session?.user || null);
+            });
+        }
+
+        populateSelects();
+        document.getElementById('skuSelect').value = "29"; // 5*4 KARE
+        populateSKU();
+        addMixedRowWithCount(11, 400);
+        addMixedRowWithCount(29, 200);
+        updateVehicleDims();
+        handleBaseChange();
+        initCanvasInteractions();
+        autoSyncSingleTargetCapacity();
+        debouncedRunEngine();
+    });
+
+    function debouncedRunEngine() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(runEngine, 80);
+    }
+
     // ==========================================
-    // NOTIFICATIONS & PENDING COUNTER BADGE
+    // AUTHENTICATION & APPROVAL HIERARCHY
     // ==========================================
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function closeDashboard() { document.getElementById('adminDashboardModal').classList.add('hidden'); }
+
+    function handleAuthChange(user) {
+        currentUser = user;
+        if (user) {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('loggedOutView').classList.add('hidden');
+            document.getElementById('loggedInView').classList.remove('hidden');
+            loadUserProfile(user.id);
+        } else {
+            document.getElementById('authModal').classList.add('hidden');
+            document.getElementById('loggedOutView').classList.remove('hidden');
+            document.getElementById('loggedInView').classList.add('hidden');
+        }
+    }
+
+    function switchAuthTab(mode) {
+        authMode = mode;
+        const btnLogin = document.getElementById('authTabLogin');
+        const btnReg = document.getElementById('authTabRegister');
+        const regFields = document.getElementById('registerFields');
+        const submitBtn = document.getElementById('authSubmitBtn');
+        const err = document.getElementById('authErrorMsg');
+        err.classList.add('hidden');
+
+        if (mode === 'login') {
+            btnLogin.className = "flex-1 py-2 font-bold text-sm border-b-2 border-sky-500 text-sky-600";
+            btnReg.className = "flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent";
+            regFields.classList.add('hidden');
+            submitBtn.innerText = "Giriş Yap";
+        } else {
+            btnReg.className = "flex-1 py-2 font-bold text-sm border-b-2 border-sky-500 text-sky-600";
+            btnLogin.className = "flex-1 py-2 font-bold text-sm text-slate-400 border-b-2 border-transparent";
+            regFields.classList.remove('hidden');
+            submitBtn.innerText = "Kayıt Ol ve Başla";
+        }
+    }
+
+    async function handleAuthSubmit() {
+        const errLabel = document.getElementById('authErrorMsg');
+        errLabel.classList.add('hidden');
+        
+        if (!supabaseClient) { 
+            errLabel.innerText = "Veritabanı bağlantısı yok. Lütfen sayfayı yenileyin."; 
+            errLabel.classList.remove('hidden'); 
+            return; 
+        }
+        
+        const email = document.getElementById('authEmail').value.trim();
+        const password = document.getElementById('authPassword').value;
+        if (!email || !password) { 
+            errLabel.innerText = "E-posta ve şifre gereklidir."; 
+            errLabel.classList.remove('hidden'); 
+            return; 
+        }
+        
+        const btn = document.getElementById('authSubmitBtn');
+        try {
+            btn.innerText = "İşlem yapılıyor..."; btn.disabled = true;
+
+            if (authMode === 'login') {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+            } else {
+                const fullName = document.getElementById('regFullName').value.trim() || 'Kullanıcı';
+                let role = document.getElementById('regRole').value;
+                if (email.toLowerCase() === 'admin96@admin.com' && password === 'admin96') { role = 'admin'; }
+
+                const { error } = await supabaseClient.auth.signUp({ 
+                    email, password, options: { data: { full_name: fullName, role: role } } 
+                });
+                if (error) throw error;
+                errLabel.innerText = "Kayıt başarılı! Giriş yapabilirsiniz.";
+                errLabel.classList.remove('hidden', 'text-rose-500'); 
+                errLabel.classList.add('text-emerald-600');
+            }
+        } catch (e) {
+            errLabel.classList.remove('hidden', 'text-emerald-600'); 
+            errLabel.classList.add('text-rose-500');
+            errLabel.innerText = "Hata: " + e.message;
+        } finally {
+            btn.innerText = authMode === 'login' ? "Giriş Yap" : "Kayıt Ol ve Başla"; 
+            btn.disabled = false;
+        }
+    }
+
+    async function loadUserProfile(userId) {
+        if (!supabaseClient) return;
+        const { data } = await supabaseClient.from('profiles').select('*').eq('id', userId).single();
+        currentUserProfile = data || { role: currentUser.user_metadata?.role || 'sales', full_name: currentUser.user_metadata?.full_name || currentUser.email };
+        applyRolePermissions();
+        updatePendingBadgeCount();
+    }
+
+    function applyRolePermissions() {
+        const role = currentUserProfile.role || 'sales';
+        const roleBadge = document.getElementById('userRoleBadge');
+        const btnSales = document.getElementById('btnSubmitSales');
+        const dashBtn = document.getElementById('btnDashboard');
+        
+        document.getElementById('userEmailLabel').innerText = currentUserProfile.full_name || currentUser.email;
+
+        btnSales.classList.add('hidden'); dashBtn.classList.add('hidden');
+
+        if (role === 'logistics' || role === 'admin') {
+            roleBadge.innerText = role === 'admin' ? "YÖNETİCİ" : "LOJİSTİK & AR-GE"; 
+            roleBadge.className = role === 'admin' ? "px-1.5 py-0.5 rounded font-black text-[9px] bg-indigo-600 text-white uppercase" : "px-1.5 py-0.5 rounded font-black text-[9px] bg-sky-600 text-white uppercase";
+            dashBtn.classList.remove('hidden'); dashBtn.classList.add('flex');
+        } else {
+            roleBadge.innerText = "SATIŞ EKİBİ"; 
+            roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[9px] bg-amber-600 text-white uppercase";
+            btnSales.classList.remove('hidden'); btnSales.classList.add('flex');
+        }
+    }
+
+    async function handleLogout() { 
+        if (supabaseClient) await supabaseClient.auth.signOut(); 
+        location.reload(); 
+    }
+
     async function updatePendingBadgeCount() {
         if (!supabaseClient || !currentUserProfile) return;
         const badge = document.getElementById('pendingBadgeBubble');
@@ -429,14 +581,120 @@
                 badge.classList.add('hidden');
             }
         } else {
-            // For Sales: count requests where status is updated or reviewed
             badge.classList.add('hidden');
         }
     }
 
-    // ==========================================
-    // LOGISTICS REVIEW ACTIONS (APPROVE / DENY / CORRECT)
-    // ==========================================
+    async function saveSimulation(status) {
+        if (!globalFleet || globalFleet.length === 0 || globalFleet[0].placedItems.length === 0) {
+            alert("Lütfen önce yüklenecek geçerli bir plan oluşturun.");
+            return;
+        }
+
+        const btnSales = document.getElementById('btnSubmitSales');
+        if (status === 'bekliyor') { btnSales.innerText = "Gönderiliyor..."; btnSales.disabled = true; } 
+
+        let tBoxes = 0; let tWgt = 0;
+        globalFleet.forEach(v => { tBoxes += v.totalBoxes; tWgt += v.totalWgt; });
+
+        let input_data = {
+            mode: currentMode,
+            vehicleType: document.getElementById('vehicleType').value,
+            maxWgt: document.getElementById('maxWgt').value,
+            targetBoxes: document.getElementById('targetBoxes').value,
+            baseType: document.getElementById('baseType').value,
+            singleSkuIdx: document.getElementById('skuSelect').value
+        };
+
+        const payload = {
+            status: status,
+            mode: currentMode,
+            vehicle_type: document.getElementById('vehicleType').value,
+            base_type: document.getElementById('baseType').value,
+            total_boxes: tBoxes,
+            total_weight: tWgt,
+            total_loads: `${globalFleet.length} Araç`,
+            layout_data: { inputs: input_data, results: globalFleet }
+        };
+
+        if (currentUserProfile?.role === 'sales') {
+            payload.sales_email = currentUser.email;
+            payload.sales_name = currentUserProfile.full_name || 'Satış Temsilcisi';
+        } else {
+            payload.logistics_email = currentUser.email;
+            payload.logistics_name = currentUserProfile.full_name || 'Lojistik Yetkilisi';
+        }
+
+        let dbError = null;
+        if (currentSimulationId) { 
+            const { error } = await supabaseClient.from('simulations').update(payload).eq('id', currentSimulationId); 
+            dbError = error;
+        } else { 
+            const { error } = await supabaseClient.from('simulations').insert([payload]); 
+            dbError = error;
+        }
+
+        if (status === 'bekliyor') { btnSales.innerText = "↗ Onaya Gönder"; btnSales.disabled = false; }
+
+        if (dbError) {
+            alert("Kayıt hatası: " + dbError.message);
+        } else {
+            alert("Talebiniz başarıyla Lojistik onay havuzuna iletildi!");
+            currentSimulationId = null;
+        }
+    }
+
+    async function openDashboard() {
+        document.getElementById('adminDashboardModal').classList.remove('hidden');
+        const loading = document.getElementById('dashboardLoading');
+        const table = document.getElementById('dashboardTable');
+        const tbody = document.getElementById('dashboardTableBody');
+        loading.classList.remove('hidden');
+        table.classList.add('hidden');
+        tbody.innerHTML = '';
+
+        const { data } = await supabaseClient.from('simulations').select('*').order('created_at', { ascending: false }).limit(30);
+        loading.classList.add('hidden');
+        table.classList.remove('hidden');
+
+        if (data && data.length > 0) {
+            data.forEach(row => {
+                const dateStr = new Date(row.created_at).toLocaleString('tr-TR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+                const salesRep = row.sales_name || row.sales_email || '-';
+                
+                let statusBadge = '<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-black uppercase">Onay Bekliyor</span>';
+                if (row.status === 'onaylandi') statusBadge = '<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase">Onaylandı</span>';
+                else if (row.status === 'reddedildi') statusBadge = '<span class="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-black uppercase">Reddedildi</span>';
+                else if (row.status === 'duzeltme') statusBadge = '<span class="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-black uppercase">Düzeltme İstendi</span>';
+
+                let reviewNote = row.layout_data_review_note || '-';
+                let actionBtns = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-sky-100 hover:bg-sky-200 text-sky-700 font-bold px-2 py-1 rounded text-[10px] uppercase transition">İncele</button>`;
+
+                if (currentUserProfile?.role === 'logistics' || currentUserProfile?.role === 'admin') {
+                    actionBtns += `
+                        <div class="flex gap-1 justify-center mt-1">
+                            <button onclick="promptReviewAction(${row.id}, 'onaylandi')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2 py-1 rounded text-[10px] uppercase">Onayla</button>
+                            <button onclick="promptReviewAction(${row.id}, 'reddedildi')" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-2 py-1 rounded text-[10px] uppercase">Reddet</button>
+                            <button onclick="promptReviewAction(${row.id}, 'duzeltme')" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-2 py-1 rounded text-[10px] uppercase">Düzelt</button>
+                        </div>
+                    `;
+                }
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition border-b">
+                        <td class="p-3 text-slate-500">${dateStr}</td>
+                        <td class="p-3">${statusBadge}</td>
+                        <td class="p-3 font-semibold text-slate-700">${salesRep}</td>
+                        <td class="p-3 text-[11px]"><strong class="text-slate-800 block">${row.vehicle_type} (${row.base_type})</strong><span class="text-slate-500">${row.total_boxes} Koli | ${row.total_weight} kg</span></td>
+                        <td class="p-3 text-slate-600 italic text-[11px]">${reviewNote}</td>
+                        <td class="p-3 text-center">${actionBtns}</td>
+                    </tr>`;
+            });
+        } else {
+            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-semibold">Henüz sisteme düşen kayıt bulunamadı.</td></tr>`;
+        }
+    }
+
     function promptReviewAction(id, actionType) {
         document.getElementById('reviewTargetId').value = id;
         document.getElementById('reviewTargetAction').value = actionType;
@@ -448,17 +706,16 @@
         if (actionType === 'onaylandi') {
             titleEl.innerText = "Talebi Onayla";
             reasonLabel.innerText = "Onay Notu (Opsiyonel):";
-            reasonInput.placeholder = "Operasyon için uygundur...";
+            reasonInput.placeholder = "Sevkiyat için uygundur...";
         } else if (actionType === 'reddedildi') {
             titleEl.innerText = "Talebi Reddet";
             reasonLabel.innerText = "Reddetme Gerekçesi (Zorunlu):";
-            reasonInput.placeholder = "Örn: Tonaj sınırı aşıldı, palet uyumsuzluğu...";
+            reasonInput.placeholder = "Örn: Tonaj sınırı aşıldı...";
         } else if (actionType === 'duzeltme') {
             titleEl.innerText = "Düzeltme İste / Geri Gönder";
-            reasonLabel.innerText = "Düzeltme Açıklaması / Gerekçesi (Zorunlu):";
-            reasonInput.placeholder = "Örn: Lütfen ürün sırasını değiştirip tekrar gönderin...";
+            reasonLabel.innerText = "Düzeltme Açıklaması (Zorunlu):";
+            reasonInput.placeholder = "Örn: Lütfen kutu miktarını azaltın...";
         }
-
         openModal('reviewModal');
     }
 
@@ -474,7 +731,6 @@
 
         closeModal('reviewModal');
         
-        let newStatus = actionType;
         let notificationMsg = "";
         if (actionType === 'onaylandi') notificationMsg = `Lojistik Tarafından ONAYLANDI. Not: ${reason || 'Yok'}`;
         else if (actionType === 'reddedildi') notificationMsg = `Lojistik Tarafından REDDEDİLDİ. Gerekçe: ${reason}`;
@@ -483,7 +739,7 @@
         const { error } = await supabaseClient
             .from('simulations')
             .update({ 
-                status: newStatus,
+                status: actionType,
                 logistics_email: currentUser.email,
                 logistics_name: currentUserProfile.full_name || 'Lojistik Yetkilisi',
                 layout_data_review_note: notificationMsg
@@ -493,15 +749,138 @@
         if (error) {
             alert("Güncelleme hatası: " + error.message);
         } else {
-            alert("✅ Karar başarıyla kaydedildi ve Satış ekibine bildirim gönderildi!");
+            alert("✅ Karar kaydedildi!");
             openDashboard();
             updatePendingBadgeCount();
         }
     }
 
+    async function loadSimulationIntoEditor(id) {
+        const { data, error } = await supabaseClient.from('simulations').select('*').eq('id', id).single();
+        if (error || !data) return alert("Talep yüklenemedi.");
+        
+        currentSimulationId = data.id; 
+        const inputs = data.layout_data.inputs;
+
+        switchTab(inputs.mode || 'single');
+        document.getElementById('vehicleType').value = inputs.vehicleType || 'TIR';
+        document.getElementById('maxWgt').value = inputs.maxWgt || 25000;
+        document.getElementById('targetBoxes').value = inputs.targetBoxes || '';
+        document.getElementById('baseType').value = inputs.baseType || 'floor';
+
+        if (inputs.mode === 'single') {
+            document.getElementById('skuSelect').value = inputs.singleSkuIdx || 0;
+            populateSKU();
+        }
+
+        isUserDefinedTarget = true;
+        updateVehicleDims(); 
+        handleBaseChange(); 
+        debouncedRunEngine(); 
+        closeDashboard();
+    }
+
     // ==========================================
-    // BACKBONE & ENGINE
+    // CAPACITY & TARGET CALCULATION
     // ==========================================
+    function autoSyncSingleTargetCapacity() {
+        if (isUserDefinedTarget && document.getElementById('targetBoxes').value !== '') return;
+
+        const baseType = document.getElementById('baseType').value;
+        const contL = parseInt(document.getElementById('contL').value) || 13600;
+        const contW = parseInt(document.getElementById('contW').value) || 2420;
+        const contH = parseInt(document.getElementById('contH').value) || 2400;
+        const maxWgt = parseInt(document.getElementById('maxWgt').value) || 25000;
+        
+        let effContL = contL - 10;
+        let effContW = contW - 10;
+        if (document.getElementById('vehicleType').value === 'TIR' && document.getElementById('optFrontCurve').checked) effContL -= 100;
+        if (document.getElementById('optDoor').checked) effContL -= 80;
+
+        const skuIdx = parseInt(document.getElementById('skuSelect').value) || 0;
+        const sku = skuDatabase[skuIdx];
+        if (!sku) return;
+
+        let singleTruckMaxBoxes = 0;
+        const maxBoxesByWgt = Math.floor(maxWgt / sku.Wt);
+
+        if (baseType === 'floor') {
+            let c1 = Math.floor(effContW / sku.W);
+            let c2 = Math.floor(effContW / sku.L);
+            let isRotated = c2 > c1;
+            let cols = isRotated ? c2 : c1;
+            let actualBoxL = isRotated ? sku.W : sku.L;
+            let rows = Math.floor(effContL / actualBoxL);
+            let physMaxLayers = Math.max(1, Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H)));
+            let volumeLimit = cols * rows * physMaxLayers;
+            singleTruckMaxBoxes = Math.min(volumeLimit, maxBoxesByWgt);
+        } else {
+            let palletL = 1200, palletW = 800;
+            let c1 = Math.floor(palletL / sku.L) * Math.floor(palletW / sku.W);
+            let c2 = Math.floor(palletL / sku.W) * Math.floor(palletW / sku.L);
+            let boxesPerLayer = Math.max(1, Math.max(c1, c2));
+            let maxLayers = Math.max(1, Math.min(sku.maxLayers, Math.floor((contH - 180) / sku.H)));
+            let colsAcross = Math.floor(effContW / palletW);
+            let rowsDeep = Math.floor(effContL / palletL);
+            let totalPallets = colsAcross * rowsDeep;
+            let volumeLimit = totalPallets * boxesPerLayer * maxLayers;
+            singleTruckMaxBoxes = Math.min(volumeLimit, maxBoxesByWgt);
+        }
+
+        document.getElementById('targetBoxes').value = singleTruckMaxBoxes;
+        document.getElementById('capacityHintBadge').innerText = `1 Araç = ${singleTruckMaxBoxes} Koli`;
+    }
+
+    function populateSelects() {
+        const select = document.getElementById('skuSelect');
+        select.innerHTML = "";
+        skuDatabase.forEach((sku, idx) => select.options.add(new Option(`${sku.name} (${sku.L}x${sku.W}x${sku.H})`, idx)));
+    }
+
+    function populateSKU() {
+        const idx = parseInt(document.getElementById('skuSelect').value) || 0;
+        const sku = skuDatabase[idx];
+        if (!sku) return;
+        document.getElementById('boxL').value = sku.L;
+        document.getElementById('boxW').value = sku.W;
+        document.getElementById('boxH').value = sku.H;
+        document.getElementById('boxWt').value = sku.Wt;
+    }
+
+    function updateVehicleDims() {
+        const v = document.getElementById('vehicleType').value;
+        let l = 13600, w = 2420, h = 2400, wgt = 25000;
+        if(v === "40HC") { l=12015; w=2345; h=2690; wgt=27800; }
+        else if(v === "40DC") { l=12015; w=2345; h=2335; wgt=27800; }
+        else if(v === "20DC") { l=5890; w=2345; h=2390; wgt=27800; }
+        
+        document.getElementById('contL').value = l;
+        document.getElementById('contW').value = w;
+        document.getElementById('contH').value = h;
+        document.getElementById('maxWgt').value = wgt;
+        
+        const curveLabel = document.getElementById('optFrontCurveLabel');
+        if (curveLabel) curveLabel.style.display = (v === "TIR") ? 'flex' : 'none';
+        if(v !== "TIR") document.getElementById('optFrontCurve').checked = false;
+    }
+
+    function addMixedRowWithCount(prefillIdx, prefillCount) {
+        const div = document.createElement('div');
+        div.className = "flex gap-2 items-center mixed-row mb-1 p-1 bg-white border border-slate-200 rounded shadow-sm";
+        let options = skuDatabase.map((s, i) => `<option value="${i}" ${i === prefillIdx ? 'selected' : ''}>${s.name}</option>`).join('');
+        div.innerHTML = `
+            <div class="drag-handle text-slate-400 font-bold px-1 hover:text-slate-700 text-lg">☰</div>
+            <select class="w-[50%] p-1.5 border rounded text-xs mixed-sku" onchange="debouncedRunEngine()">${options}</select>
+            <input type="number" class="w-[35%] p-1.5 border rounded text-xs mixed-val font-bold text-sky-700" placeholder="Adet" value="${prefillCount}" oninput="debouncedRunEngine()">
+            <button onclick="if(document.querySelectorAll('.mixed-row').length>1){this.parentElement.remove(); debouncedRunEngine();}" class="text-rose-500 font-bold px-2 py-1">✕</button>
+        `;
+        document.getElementById('mixedList').appendChild(div);
+    }
+    function addNewMixedRow() { addMixedRowWithCount(0, 100); debouncedRunEngine(); }
+
+    // =====================================================================
+    // STEPPED DISTRIBUTION ENGINE (BED-LENGTH EXTENSION + BCT RELIEF)
+    // =====================================================================
     function runEngine() {
         const baseType = document.getElementById('baseType').value;
         const contL = parseInt(document.getElementById('contL').value) || 13600;
@@ -520,6 +899,7 @@
         if (currentMode === 'single') {
             const skuIdx = parseInt(document.getElementById('skuSelect').value) || 0;
             const sku = skuDatabase[skuIdx];
+            if (!sku) return;
             let targetBoxes = parseInt(document.getElementById('targetBoxes').value);
             if (isNaN(targetBoxes) || targetBoxes <= 0) {
                 targetBoxes = Math.floor(maxWgt / sku.Wt);
