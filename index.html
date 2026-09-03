@@ -152,7 +152,7 @@
                     <option value="1">100x120 cm Palet</option>
                     <option value="2">97x97 cm Palet</option>
                     <option value="3">97x119 cm Palet</option>
-                    <option value="4">97x115 cm Palet</option>
+                    <option value="4" selected>97x115 cm Palet</option>
                 </select>
             </div>
 
@@ -201,7 +201,7 @@
             </div>
         </div>
 
-        <!-- OPERATOR INSTRUCTIONS -->
+        <!-- OPERATOR INSTRUCTIONS (WITH RESTORED STEP 1 BOX BREAKDOWN) -->
         <div id="layerOptimizationInfo"><div id="optimizationDetailsList"></div></div>
 
         <!-- 3D CANVAS AREA -->
@@ -293,7 +293,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
         populateSelects();
-        document.getElementById('skuSelect').value = "6"; // Select 1*20 İncebelli as in screenshot
+        document.getElementById('skuSelect').value = "6"; // 1*20 İncebelli
         populateSKU();
         addMixedRowWithCount(11, 400);
         addMixedRowWithCount(29, 200);
@@ -305,7 +305,7 @@
 
     function debouncedRunEngine() {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(runEngine, 100);
+        debounceTimer = setTimeout(runEngine, 80);
     }
 
     function switchTab(mode) {
@@ -405,7 +405,6 @@
             });
         }
 
-        // Fleet packer: slices targets across multiple vehicles without getting stuck
         globalFleet = [];
         let remainingQueue = queue.map(q => ({ ...q, remaining: q.target }));
         let safetyTruck = 0;
@@ -439,7 +438,6 @@
             const sku = item.sku;
 
             if (baseType === 'floor') {
-                // Test both orientations
                 let c1 = Math.floor(effContW / sku.W);
                 let c2 = Math.floor(effContW / sku.L);
                 let isRotated = c2 > c1;
@@ -450,13 +448,13 @@
 
                 if (cols <= 0) continue;
 
-                // Priority to container length: calculate lowest layer height (k) to stretch across bed
                 let maxRowsAvailable = Math.floor((effContL - currentX) / actualBoxL);
                 if (maxRowsAvailable <= 0) {
                     vehicleFull = true;
                     continue;
                 }
 
+                // Optimal layer search: find lowest uniform height (k) to prioritize length (reach toward doors)
                 let optimalLayers = physMaxLayers;
                 for (let k = 1; k <= physMaxLayers; k++) {
                     let neededRows = Math.ceil(item.remaining / (cols * k));
@@ -467,12 +465,9 @@
                 }
 
                 let boxesPerRow = cols * optimalLayers;
-                let weightPerRow = boxesPerRow * sku.Wt;
 
-                // Pack rows sequentially along length X
                 while (item.remaining > 0 && currentX + actualBoxL <= effContL) {
                     if (totalWgt + (sku.Wt * Math.min(boxesPerRow, item.remaining)) > maxWgt) {
-                        // Fit partial weight allowance if possible
                         let allowBoxes = Math.floor((maxWgt - totalWgt) / sku.Wt);
                         if (allowBoxes > 0) {
                             let partialLayers = Math.ceil(allowBoxes / cols);
@@ -480,8 +475,9 @@
                                 id: sku.name, x: currentX, y: (effContW - (cols * actualBoxW)) / 2,
                                 l: actualBoxL, w: cols * actualBoxW, h: partialLayers * sku.H,
                                 boxes: allowBoxes, wgt: allowBoxes * sku.Wt, color: item.color,
-                                cols, rows: 1, layers: partialLayers, singleBoxL: actualBoxL, singleBoxW: actualBoxW, singleBoxH: sku.H,
-                                isRotated, isPartial: true
+                                cols, rows: 1, layers: partialLayers, targetLayers: optimalLayers,
+                                singleBoxL: actualBoxL, singleBoxW: actualBoxW, singleBoxH: sku.H,
+                                isRotated, isPartial: true, priority: item.priority
                             });
                             totalWgt += allowBoxes * sku.Wt;
                             totalBoxes += allowBoxes;
@@ -499,8 +495,9 @@
                         id: sku.name, x: currentX, y: (effContW - (cols * actualBoxW)) / 2,
                         l: actualBoxL, w: cols * actualBoxW, h: rowLayers * sku.H,
                         boxes: boxesInRow, wgt: rowWgt, color: item.color,
-                        cols, rows: 1, layers: rowLayers, singleBoxL: actualBoxL, singleBoxW: actualBoxW, singleBoxH: sku.H,
-                        isRotated, isPartial: (boxesInRow < boxesPerRow)
+                        cols, rows: 1, layers: rowLayers, targetLayers: optimalLayers,
+                        singleBoxL: actualBoxL, singleBoxW: actualBoxW, singleBoxH: sku.H,
+                        isRotated, isPartial: (boxesInRow < boxesPerRow), priority: item.priority
                     });
 
                     totalWgt += rowWgt;
@@ -512,8 +509,7 @@
                 if (currentX + actualBoxL > effContL) vehicleFull = true;
 
             } else {
-                // Palletized calculation
-                let palletL = 1200, palletW = 800; // Euro Pallet default
+                let palletL = 1200, palletW = 800;
                 let c1 = Math.floor(palletL / sku.L) * Math.floor(palletW / sku.W);
                 let c2 = Math.floor(palletL / sku.W) * Math.floor(palletW / sku.L);
                 let isRotated = c2 > c1;
@@ -544,8 +540,9 @@
                             boxes: b, wgt: w, color: item.color,
                             cols: Math.floor(palletW / (isRotated ? sku.L : sku.W)),
                             rows: Math.floor(palletL / (isRotated ? sku.W : sku.L)),
-                            layers: maxLayers, singleBoxL: isRotated ? sku.W : sku.L, singleBoxW: isRotated ? sku.L : sku.W, singleBoxH: sku.H,
-                            isRotated, isPallet: true
+                            layers: maxLayers, targetLayers: maxLayers,
+                            singleBoxL: isRotated ? sku.W : sku.L, singleBoxW: isRotated ? sku.L : sku.W, singleBoxH: sku.H,
+                            isRotated, isPallet: true, priority: item.priority
                         });
                         totalWgt += w;
                         totalBoxes += b;
@@ -568,7 +565,7 @@
     }
 
     // ==========================================
-    // UI & REPORTING UPDATES
+    // UI & REPORTING UPDATES (RESTORED DETAILS)
     // ==========================================
     function updateFleetUI() {
         let pagContainer = document.getElementById('fleetPaginationContainer');
@@ -589,8 +586,6 @@
 
         document.getElementById('resTotalBoxes').innerText = truck.totalBoxes.toLocaleString();
         document.getElementById('resWeight').innerText = `${truck.totalWgt.toLocaleString(undefined, {maximumFractionDigits:1})} kg`;
-        
-        // Count distinct rows or pallet stacks
         document.getElementById('resLoads').innerText = `${truck.placedItems.length} Sıra/Blok`;
 
         let momentX = 0;
@@ -601,21 +596,137 @@
         document.getElementById('resStatus').innerText = weightPct >= 99 ? `⚠️ Ağırlık Sınırında (CoG: ${(cogX/1000).toFixed(1)}m)` : `Optimum (CoG: ${(cogX/1000).toFixed(1)}m)`;
         document.getElementById('resStatus').className = weightPct >= 99 ? "text-xs md:text-sm font-bold text-rose-600 mt-1" : "text-xs md:text-sm font-bold text-emerald-600 mt-1";
 
-        // Operator Step-by-Step Instructions
+        // Aggregate placed items per SKU to render full breakdown in Step 1
+        let groupedItems = {};
+        truck.placedItems.forEach(item => {
+            if (!groupedItems[item.id]) {
+                groupedItems[item.id] = {
+                    name: item.id,
+                    totalBoxes: 0,
+                    totalRows: 0,
+                    cols: item.cols,
+                    layers: item.targetLayers || item.layers,
+                    isRotated: item.isRotated,
+                    color: item.color,
+                    singleBoxL: item.singleBoxL,
+                    singleBoxW: item.singleBoxW,
+                    hasPartial: false
+                };
+            }
+            groupedItems[item.id].totalBoxes += item.boxes;
+            groupedItems[item.id].totalRows += (item.rows || 1);
+            if (item.isPartial) groupedItems[item.id].hasPartial = true;
+        });
+
+        let groupList = Object.values(groupedItems);
+        let skuDetailsHtml = '';
+
+        groupList.forEach((g, idx) => {
+            let safeCanvasId = `pallet_preview_${idx}`;
+            let orientationText = g.isRotated 
+                ? "Kutular YAN Çevrilecek (Kısa kenar tır uzunluğuna paralel)" 
+                : "Kutular DÜZ Konulacak (Uzun kenar tır uzunluğuna paralel)";
+
+            skuDetailsHtml += `
+                <li class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm mt-2">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="w-4 h-4 rounded border border-slate-300 inline-block" style="background-color:${g.color.base}"></span>
+                        <strong class="text-indigo-900 text-xs md:text-sm">${g.name}</strong>
+                        <span class="ml-auto text-emerald-700 font-black text-xs md:text-sm">${g.totalBoxes.toLocaleString()} Koli</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs mb-2">
+                        <div class="bg-slate-50 p-2 rounded">
+                            <span class="block text-slate-500 text-[10px] uppercase font-bold">Toplam Blok / Sıra</span>
+                            <strong class="text-slate-800 text-xs md:text-sm">${g.totalRows} Sıra</strong>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded">
+                            <span class="block text-slate-500 text-[10px] uppercase font-bold">Sıra Başına Koli</span>
+                            <strong class="text-slate-800 text-xs md:text-sm">${g.cols * g.layers} Koli (Tam Sıra)</strong>
+                        </div>
+                        
+                        <div class="col-span-1 md:col-span-2 bg-indigo-50 p-2.5 rounded border border-indigo-100">
+                            <span class="block text-indigo-700 text-[10px] uppercase font-bold mb-1">Araç İçi Genel Dizilim Boyutları</span>
+                            <strong class="text-slate-800 text-xs block mb-1">
+                                Genişlik (En): ${g.cols} Koli &nbsp;|&nbsp; Uzunluk (Boy): ${g.totalRows} Sıra &nbsp;|&nbsp; Yükseklik (Kat): ${g.layers} Kat
+                            </strong>
+                            <span class="text-emerald-700 font-bold text-[10px] uppercase border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 rounded shadow-sm inline-block mt-0.5">
+                                Kutu Yönü: ${orientationText}
+                            </span>
+                        </div>
+                        
+                        ${g.hasPartial ? `<div class="col-span-1 md:col-span-2 bg-rose-50 text-rose-700 p-2 rounded border border-rose-200 text-xs font-semibold">⚠️ <strong>Kısmi İstif:</strong> Kapıya en yakın olan son sırayı kalan koli miktarı kadar dizin.</div>` : ''}
+                    </div>
+
+                    <div class="flex items-center gap-4 border-t border-slate-100 pt-2.5">
+                        <div class="w-20 h-20 flex-shrink-0 bg-slate-50 border border-slate-200 rounded p-1">
+                            <canvas id="${safeCanvasId}" width="80" height="80" class="w-full h-full object-contain"></canvas>
+                        </div>
+                        <div class="text-[10px] text-slate-500">
+                            <strong class="text-slate-700 uppercase">Taban Dizilimi (Üstten Görünüm)</strong><br>
+                            Her sırayı yandaki plana göre dorseye ortalayarak yerleştirin. Üzerine <strong>${g.layers} kat</strong> olana kadar aynı deseni tekrarlayın.
+                        </div>
+                    </div>
+                </li>
+            `;
+        });
+
         const useAirbag = document.getElementById('optAirbag').checked;
         const useLashing = document.getElementById('optLashing').checked;
-        const isRotated = truck.placedItems.length > 0 && truck.placedItems[0].isRotated;
 
         document.getElementById('optimizationDetailsList').innerHTML = `
-            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200 shadow-sm text-xs text-indigo-950 space-y-2">
+            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-200 shadow-sm text-xs text-indigo-950 space-y-3">
                 <h4 class="font-black text-sm text-indigo-900 uppercase">👷 ADIM ADIM SAHA OPERATÖR TALİMATI (ARAÇ ${currentVehicleIdx + 1})</h4>
-                <p><strong>Dizilim Kuralı:</strong> ${isRotated ? 'Kutular YAN ÇEVRİLEREK yüklenecektir.' : 'Kutular DÜZ yerleştirilecektir.'} Kutuları ön duvardan kapıya doğru sırayla dizin.</p>
-                <ul class="list-disc pl-5 space-y-1">
-                    <li>${(useAirbag && truck.gapW > 80) ? `🔄 <strong>Yanal Boşluk:</strong> Yanlarda toplam ${Math.floor(truck.gapW)} mm boşluk kalmaktadır. Hava Yastığı (Airbag) kullanın.` : '✅ Yanal alan güvenli seviyede doludur.'}</li>
-                    <li>${(useLashing && truck.gapL > 200) ? `🚚 <strong>Boyuna Boşluk:</strong> Yük kapıya ${Math.floor(truck.gapL)} mm mesafede bitmektedir. Spanset (Lashing) çekilmelidir.` : '✅ Yük kapıya tam oturmaktadır. Devrilme riski minimumdur.'}</li>
-                </ul>
+                
+                <div>
+                    <h5 class="font-bold text-xs text-indigo-900 bg-indigo-100 p-2 rounded">ADIM 1: İSTİFLERİ & SIRALARI HAZIRLAYIN</h5>
+                    <ul class="space-y-1.5">${skuDetailsHtml || '<li class="text-slate-500 py-2">Yüklenecek ürün bulunamadı.</li>'}</ul>
+                </div>
+
+                <div>
+                    <h5 class="font-bold text-xs text-indigo-900 bg-indigo-100 p-2 rounded mb-1.5">ADIM 2: ARAÇ İÇİNE YERLEŞTİRİN & MERKEZLEYİN</h5>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-700">
+                        <li>3D modeldeki plana göre istifleri ön duvardan kapıya doğru sırayla yerleştirin.</li>
+                        <li><strong>Tüm yükü dorse genişliğine göre tam ortalayın.</strong></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h5 class="font-bold text-xs text-indigo-900 bg-indigo-100 p-2 rounded mb-1.5">ADIM 3: GÜVENLİK VE SABİTLEME (STATİK/DİNAMİK ETKİLER)</h5>
+                    <ul class="list-disc pl-5 space-y-1 text-slate-700">
+                        <li>${(useAirbag && truck.gapW > 80) ? `🔄 <strong>Yanal Boşluk:</strong> Yanlarda toplam ${Math.floor(truck.gapW)} mm boşluk kalmaktadır. Virajlarda kaymayı önlemek için <strong>Hava Yastığı (Airbag)</strong> kullanın.` : '✅ Yanal alan güvenli seviyede doludur.'}</li>
+                        <li>${(useLashing && truck.gapL > 200) ? `🚚 <strong>Boyuna Boşluk:</strong> Yük kapıya ${Math.floor(truck.gapL)} mm mesafede bitmektedir. Devrilmeyi önlemek için <strong>Spanset (Lashing)</strong> çekilmelidir.` : '✅ Yük kapıya tam oturmaktadır. Devrilme riski minimumdur.'}</li>
+                    </ul>
+                </div>
             </div>
         `;
+
+        // Render mini top-down canvas previews for each SKU in Step 1
+        setTimeout(() => {
+            groupList.forEach((g, idx) => {
+                let cvs = document.getElementById(`pallet_preview_${idx}`);
+                if (!cvs) return;
+                let c = cvs.getContext('2d');
+                c.clearRect(0, 0, cvs.width, cvs.height);
+
+                let pad = 6;
+                let totW = g.cols * g.singleBoxW;
+                let totL = 1 * g.singleBoxL;
+                let sc = Math.min((cvs.width - pad * 2) / totL, (cvs.height - pad * 2) / totW);
+
+                let ox = (cvs.width - totL * sc) / 2;
+                let oy = (cvs.height - totW * sc) / 2;
+
+                c.fillStyle = g.color.top;
+                for (let col = 0; col < g.cols; col++) {
+                    let bx = ox;
+                    let by = oy + (col * g.singleBoxW * sc);
+                    c.fillRect(bx, by, g.singleBoxL * sc - 1, g.singleBoxW * sc - 1);
+                    c.strokeStyle = 'rgba(0,0,0,0.4)';
+                    c.strokeRect(bx, by, g.singleBoxL * sc - 1, g.singleBoxW * sc - 1);
+                }
+            });
+        }, 50);
 
         lastRenderData = { placedItems: truck.placedItems, contL: ctx.contL, contW: ctx.contW, contH: ctx.contH, optFrontCurve: ctx.optFrontCurve, cogX };
         performRender(lastRenderData);
