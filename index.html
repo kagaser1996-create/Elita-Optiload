@@ -71,8 +71,8 @@
             <div>
                 <label class="text-xs font-bold text-slate-500 uppercase mb-1 block">Departman Yetkisi</label>
                 <select id="regRole" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-sky-500 outline-none font-semibold">
-                    <option value="sales">Satış Ekibi (Planlar & Onaya Gönderir)</option>
-                    <option value="logistics">Lojistik & Ar-Ge (İnceler & Nihai Onay Verir)</option>
+                    <option value="sales">Satış Ekibi (Kendi Taleplerini Görür)</option>
+                    <option value="logistics">Lojistik & Ar-Ge (Tüm Talepleri İnceler & Onaylar)</option>
                 </select>
             </div>
         </div>
@@ -95,25 +95,26 @@
 
 <!-- 2. INBOX / DASHBOARD MODAL -->
 <div id="adminDashboardModal" class="hidden fixed inset-0 bg-slate-900/80 z-40 flex items-center justify-center p-4 no-print">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-[1100px] w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-[1150px] w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
         <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <span class="text-lg">📥</span>
-                <h3 class="font-bold text-base">Gelen Talepler & Onay Geçmişi</h3>
+                <h3 class="font-bold text-base" id="dashboardModalHeader">Talepler & Durum Takibi</h3>
             </div>
             <button onclick="closeDashboard()" class="text-slate-400 hover:text-white font-black text-lg">✕</button>
         </div>
         <div class="p-4 md:p-6 overflow-y-auto flex-grow custom-scrollbar">
             <div id="dashboardLoading" class="text-center text-slate-400 py-8 font-semibold">Kayıtlar yükleniyor, lütfen bekleyin...</div>
             <div class="overflow-x-auto">
-                <table id="dashboardTable" class="w-full text-left text-xs bg-white rounded border border-slate-200 hidden min-w-[750px]">
+                <table id="dashboardTable" class="w-full text-left text-xs bg-white rounded border border-slate-200 hidden min-w-[800px]">
                     <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b">
                         <tr>
                             <th class="p-3">Tarih</th>
+                            <th class="p-3">Sipariş / Talep Adı</th>
                             <th class="p-3">Durum</th>
                             <th class="p-3">Satış Temsilcisi</th>
                             <th class="p-3">Araç & Yük</th>
-                            <th class="p-3">Son Karar Notu</th>
+                            <th class="p-3">Lojistik Karar Notu</th>
                             <th class="p-3 text-center">İşlem</th>
                         </tr>
                     </thead>
@@ -124,7 +125,7 @@
     </div>
 </div>
 
-<!-- 3. LOGISTICS REVIEW REASON MODAL (REDDET / DÜZELTME) -->
+<!-- 3. LOGISTICS REVIEW REASON MODAL -->
 <div id="reviewReasonModal" class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 no-print">
     <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border-t-8 border-indigo-600">
         <div class="flex justify-between items-start mb-3">
@@ -135,12 +136,12 @@
         
         <div class="mb-4">
             <label class="text-xs font-bold text-slate-700 uppercase mb-1 block" id="reviewReasonFieldLabel">Açıklama / Gerekçe:</label>
-            <textarea id="reviewReasonInput" rows="3" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-indigo-500 outline-none" placeholder="Lütfen Satış ekibinin göreceği gerekçeyi yazın..."></textarea>
+            <textarea id="reviewReasonInput" rows="3" class="w-full p-2.5 border rounded-lg bg-slate-50 text-sm focus:border-indigo-500 outline-none" placeholder="Satış ekibine iletilecek gerekçeyi yazın..."></textarea>
         </div>
 
         <div class="flex gap-2">
             <button onclick="closeModal('reviewReasonModal')" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition">İptal</button>
-            <button onclick="executeFinalDecision()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md">Kaydet & Bildir</button>
+            <button onclick="executeFinalDecision()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md">Kaydet & Satışa Bildir</button>
         </div>
     </div>
 </div>
@@ -161,7 +162,7 @@
             <button onclick="exportPDF()" class="bg-rose-600 hover:bg-rose-500 text-white px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-xs font-bold shadow-md transition-all">📄 PDF</button>
             <button onclick="window.print()" class="bg-sky-600 hover:bg-sky-500 text-white px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-xs font-bold shadow-md transition-all">🖨️ Yazdır</button>
 
-            <!-- AUTH & APPROVAL WORKFLOW -->
+            <!-- AUTH & DASHBOARD TRIGGER -->
             <div id="loggedOutView" class="flex gap-2 ml-1 md:ml-3">
                 <button onclick="openModal('authModal')" class="text-xs font-bold text-slate-300 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">Giriş / Kayıt</button>
             </div>
@@ -172,9 +173,8 @@
                     <span id="userEmailLabel" class="text-slate-300 font-medium hidden sm:inline">user@mail.com</span>
                 </div>
                 
-                <!-- DASHBOARD BUTTON WITH PENDING BUBBLE -->
-                <button id="btnDashboard" onclick="openDashboard()" class="hidden relative bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all items-center gap-1.5 shadow-sm">
-                    📥 Talepler
+                <button id="btnDashboard" onclick="openDashboard()" class="relative bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm">
+                    <span id="dashboardBtnText">📥 Taleplerim</span>
                     <span id="pendingBadgeBubble" class="hidden absolute -top-1.5 -right-1.5 bg-rose-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-md animate-pulse">0</span>
                 </button>
 
@@ -187,31 +187,69 @@
     </div>
 </nav>
 
-<!-- ACTIVE LOGISTICS REVIEW BANNER (ONLY SHOWN WHEN AN ORDER IS EXAMINED) -->
+<!-- LOGISTICS REVIEW BAR (EXAMINE FIRST THEN DECIDE) -->
 <div id="activeReviewBar" class="hidden max-w-[1400px] mx-auto w-full mb-3 bg-gradient-to-r from-slate-900 to-indigo-950 text-white border-2 border-indigo-500 rounded-xl p-3 md:p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-3 no-print">
     <div class="flex items-center gap-3">
         <span class="text-2xl animate-bounce">📋</span>
         <div>
             <div class="flex items-center gap-2 flex-wrap">
                 <span class="bg-amber-500 text-slate-950 px-2 py-0.5 rounded font-black text-[10px] uppercase">İnceleme Modu</span>
-                <span id="reviewBarTalepMeta" class="text-xs font-bold text-slate-200">Talep #--: Satış Temsilcisi</span>
+                <span id="reviewBarTalepMeta" class="text-xs font-bold text-slate-200">Talep #--</span>
             </div>
-            <p class="text-[11px] text-slate-400 mt-0.5">3D modeli ve yükleme planını inceledikten sonra kararınızı uygulayın:</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">3D modeli ve yükleme planını inceledikten sonra nihai kararınızı verin:</p>
         </div>
     </div>
     <div class="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
-        <button onclick="decideReviewAction('onaylandi')" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-xs font-black shadow-lg transition-all flex items-center justify-center gap-1">
+        <button onclick="decideReviewAction('onaylandi')" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-xs font-black shadow-lg transition-all">
             ✓ Kabul Et (Onayla)
         </button>
-        <button onclick="decideReviewAction('duzeltme')" class="flex-1 md:flex-none bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-lg text-xs font-black shadow-lg transition-all flex items-center justify-center gap-1">
+        <button onclick="decideReviewAction('duzeltme')" class="flex-1 md:flex-none bg-purple-600 hover:bg-purple-500 text-white px-3 py-2 rounded-lg text-xs font-black shadow-lg transition-all">
             ↺ Düzelt & İade Et
         </button>
-        <button onclick="decideReviewAction('reddedildi')" class="flex-1 md:flex-none bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-lg text-xs font-black shadow-lg transition-all flex items-center justify-center gap-1">
+        <button onclick="decideReviewAction('reddedildi')" class="flex-1 md:flex-none bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-lg text-xs font-black shadow-lg transition-all">
             ✕ Reddet
         </button>
         <button onclick="exitReviewMode()" class="text-slate-400 hover:text-white px-2 py-1 text-xs font-bold underline">
-            İncelemeyi Kapat
+            Kapat
         </button>
+    </div>
+</div>
+
+<!-- SALES FEEDBACK BANNER (WHEN AN ORDER RETURNS FROM LOGISTICS) -->
+<div id="salesFeedbackBar" class="hidden max-w-[1400px] mx-auto w-full mb-3 bg-gradient-to-r from-purple-950 to-slate-900 text-white border-2 border-purple-500 rounded-xl p-3 md:p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-3 no-print">
+    <div class="flex items-center gap-3">
+        <span class="text-2xl" id="salesFeedbackIcon">⚠️</span>
+        <div>
+            <div class="flex items-center gap-2">
+                <span id="salesFeedbackBadge" class="bg-purple-600 text-white px-2 py-0.5 rounded font-black text-[10px] uppercase">Lojistik İade Bildirimi</span>
+                <span id="salesFeedbackMeta" class="text-xs font-bold text-purple-200">Talep #--</span>
+            </div>
+            <p id="salesFeedbackMessage" class="text-xs text-slate-200 font-semibold mt-1">Lojistik Notu: -</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-2">
+        <button onclick="exitSalesFeedbackMode()" class="text-slate-400 hover:text-white px-2 py-1 text-xs font-bold underline">
+            Bildirimi Gizle
+        </button>
+    </div>
+</div>
+
+<!-- PRINTABLE FORM HEADER (AUTOMATICALLY REPLIES WITH ORDER NAME & OPERATOR SPECS) -->
+<div class="hidden print-only mb-4 border-b-2 border-slate-900 pb-3">
+    <div class="flex justify-between items-end mb-2">
+        <div>
+            <h1 class="text-xl font-black tracking-tight">Elita OptiLoad</h1>
+            <p class="text-xs text-slate-600 font-bold uppercase tracking-wider">Saha Yükleme & Güvenlik Formu</p>
+        </div>
+        <div class="text-right text-xs text-slate-700">
+            <strong>Tarih:</strong> <span id="printDateSpan"></span>
+        </div>
+    </div>
+    <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-xs bg-slate-50 p-3 border border-slate-300 rounded">
+        <div><strong>Sipariş / Talep Adı:</strong> <span id="printOrderTitleDisplay" class="font-black text-indigo-800 ml-1">İsimsiz Talep</span></div>
+        <div><strong>Araç & Yük Modu:</strong> <span id="printVehicleSummaryDisplay" class="font-semibold text-slate-700 ml-1">TIR (Zemin)</span></div>
+        <div><strong>Şoför Adı Soyadı:</strong> <span class="inline-block w-40 border-b border-slate-400"></span></div>
+        <div><strong>Araç Plakası / Konteyner No:</strong> <span class="inline-block w-40 border-b border-slate-400"></span></div>
     </div>
 </div>
 
@@ -225,6 +263,13 @@
         </div>
 
         <div class="p-4 md:p-5 lg:overflow-y-auto flex-grow custom-scrollbar">
+            
+            <!-- ORDER IDENTIFIER INPUT -->
+            <div class="mb-3 bg-sky-50 border border-sky-200 p-3 rounded-lg">
+                <label class="text-[10px] font-black text-sky-800 uppercase mb-1 block">Sipariş / Talep Adı (Yazdırmaya Çıkar)</label>
+                <input type="text" id="orderTitle" placeholder="Örn: Sipariş #1042 - ABC Dağıtım" class="w-full p-2 border border-sky-300 rounded bg-white text-xs font-bold text-slate-800 focus:outline-none focus:border-sky-500" oninput="syncOrderTitleToPrint();">
+            </div>
+
             <div class="section-header mt-0">Araç & Güvenlik Sınırları</div>
             <div class="input-group mb-3">
                 <label>Araç Tipi</label>
@@ -474,6 +519,7 @@
         handleBaseChange();
         initCanvasInteractions();
         autoSyncSingleTargetCapacity();
+        syncOrderTitleToPrint();
         runEngine();
     }
 
@@ -486,6 +532,24 @@
     function debouncedRunEngine() {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(runEngine, 80);
+    }
+
+    // ==========================================
+    // ORDER NAME & PRINT SYNCHRONIZATION
+    // ==========================================
+    function syncOrderTitleToPrint() {
+        const orderTitleInput = document.getElementById('orderTitle');
+        const printDisplay = document.getElementById('printOrderTitleDisplay');
+        const dateSpan = document.getElementById('printDateSpan');
+        if (dateSpan) dateSpan.innerText = new Date().toLocaleDateString('tr-TR');
+        
+        const titleVal = orderTitleInput?.value.trim() || 'İsimsiz Talep';
+        if (printDisplay) printDisplay.innerText = titleVal;
+
+        const vType = document.getElementById('vehicleType')?.value || 'TIR';
+        const bType = document.getElementById('baseType')?.value === 'floor' ? 'Zemin / Dökme' : 'Paletli';
+        const printVeh = document.getElementById('printVehicleSummaryDisplay');
+        if (printVeh) printVeh.innerText = `${vType} (${bType})`;
     }
 
     // ==========================================
@@ -592,19 +656,24 @@
         const roleBadge = document.getElementById('userRoleBadge');
         const btnSales = document.getElementById('btnSubmitSales');
         const dashBtn = document.getElementById('btnDashboard');
+        const dashText = document.getElementById('dashboardBtnText');
         
         document.getElementById('userEmailLabel').innerText = currentUserProfile?.full_name || currentUser?.email || 'Kullanıcı';
 
-        btnSales.classList.add('hidden'); dashBtn.classList.add('hidden');
+        dashBtn.classList.remove('hidden'); 
+        dashBtn.classList.add('flex');
 
         if (role === 'logistics' || role === 'admin') {
             roleBadge.innerText = role === 'admin' ? "YÖNETİCİ" : "LOJİSTİK & AR-GE"; 
             roleBadge.className = role === 'admin' ? "px-1.5 py-0.5 rounded font-black text-[9px] bg-indigo-600 text-white uppercase" : "px-1.5 py-0.5 rounded font-black text-[9px] bg-sky-600 text-white uppercase";
-            dashBtn.classList.remove('hidden'); dashBtn.classList.add('flex');
+            dashText.innerText = "📥 Gelen Talepler";
+            btnSales.classList.add('hidden');
         } else {
             roleBadge.innerText = "SATIŞ EKİBİ"; 
             roleBadge.className = "px-1.5 py-0.5 rounded font-black text-[9px] bg-amber-600 text-white uppercase";
-            btnSales.classList.remove('hidden'); btnSales.classList.add('flex');
+            dashText.innerText = "📥 Taleplerim";
+            btnSales.classList.remove('hidden'); 
+            btnSales.classList.add('flex');
         }
     }
 
@@ -613,6 +682,9 @@
         location.reload(); 
     }
 
+    // ==========================================
+    // BADGE NOTIFICATIONS (FOR SALES & LOGISTICS)
+    // ==========================================
     async function updatePendingBadgeCount() {
         if (!supabaseClient || !currentUserProfile) return;
         const badge = document.getElementById('pendingBadgeBubble');
@@ -626,12 +698,25 @@
 
             if (!error && count > 0) {
                 badge.innerText = count;
+                badge.className = "absolute -top-1.5 -right-1.5 bg-rose-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-md animate-pulse";
                 badge.classList.remove('hidden');
             } else {
                 badge.classList.add('hidden');
             }
         } else {
-            badge.classList.add('hidden');
+            const { count, error } = await supabaseClient
+                .from('simulations')
+                .select('*', { count: 'exact', head: true })
+                .eq('sales_email', currentUser.email)
+                .eq('status', 'duzeltme');
+
+            if (!error && count > 0) {
+                badge.innerText = count;
+                badge.className = "absolute -top-1.5 -right-1.5 bg-purple-600 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-md animate-bounce";
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
         }
     }
 
@@ -642,13 +727,17 @@
         }
 
         const btnSales = document.getElementById('btnSubmitSales');
-        if (status === 'bekliyor') { btnSales.innerText = "Gönderiliyor..."; btnSales.disabled = true; } 
+        btnSales.innerText = "Gönderiliyor..."; 
+        btnSales.disabled = true;
 
         let tBoxes = 0; let tWgt = 0;
         globalFleet.forEach(v => { tBoxes += v.totalBoxes; tWgt += v.totalWgt; });
 
+        const orderTitleValue = document.getElementById('orderTitle')?.value.trim() || 'İsimsiz Talep';
+
         let input_data = {
             mode: currentMode,
+            orderName: orderTitleValue,
             vehicleType: document.getElementById('vehicleType').value,
             maxWgt: document.getElementById('maxWgt').value,
             targetBoxes: document.getElementById('targetBoxes').value,
@@ -658,25 +747,24 @@
 
         const payload = {
             status: status,
+            order_name: orderTitleValue,
             mode: currentMode,
             vehicle_type: document.getElementById('vehicleType').value,
             base_type: document.getElementById('baseType').value,
             total_boxes: tBoxes,
             total_weight: tWgt,
             total_loads: `${globalFleet.length} Araç`,
-            layout_data: { inputs: input_data, results: globalFleet }
+            layout_data: { inputs: input_data, results: globalFleet, order_name: orderTitleValue }
         };
 
         if (currentUserProfile?.role === 'sales') {
             payload.sales_email = currentUser.email;
             payload.sales_name = currentUserProfile.full_name || 'Satış Temsilcisi';
-        } else {
-            payload.logistics_email = currentUser?.email || 'user@elita.com';
-            payload.logistics_name = currentUserProfile?.full_name || 'Lojistik Yetkilisi';
         }
 
         let dbError = null;
         if (currentSimulationId) { 
+            payload.layout_data_review_note = "Satış ekibi tarafından revize edilip yeniden onaya sunuldu.";
             const { error } = await supabaseClient.from('simulations').update(payload).eq('id', currentSimulationId); 
             dbError = error;
         } else { 
@@ -684,13 +772,16 @@
             dbError = error;
         }
 
-        if (status === 'bekliyor') { btnSales.innerText = "↗ Onaya Gönder"; btnSales.disabled = false; }
+        btnSales.innerText = "↗ Onaya Gönder"; 
+        btnSales.disabled = false;
 
         if (dbError) {
             alert("Kayıt hatası: " + dbError.message);
         } else {
-            alert("Talebiniz başarıyla Lojistik onay havuzuna iletildi!");
+            alert(currentSimulationId ? "✅ Planınız düzeltildi ve yeniden Lojistik onayına gönderildi!" : "✅ Talebiniz başarıyla Lojistik onay havuzuna iletildi!");
+            exitSalesFeedbackMode();
             currentSimulationId = null;
+            updatePendingBadgeCount();
         }
     }
 
@@ -699,11 +790,22 @@
         const loading = document.getElementById('dashboardLoading');
         const table = document.getElementById('dashboardTable');
         const tbody = document.getElementById('dashboardTableBody');
+        const modalHeader = document.getElementById('dashboardModalHeader');
         loading.classList.remove('hidden');
         table.classList.add('hidden');
         tbody.innerHTML = '';
 
-        const { data } = await supabaseClient.from('simulations').select('*').order('created_at', { ascending: false }).limit(30);
+        let query = supabaseClient.from('simulations').select('*').order('created_at', { ascending: false });
+
+        // STRICT ROLE ISOLATION: Sales can only see their own orders
+        if (currentUserProfile?.role === 'sales') {
+            modalHeader.innerText = "Girdiğim Talepler & Durum Takibi";
+            query = query.eq('sales_email', currentUser.email);
+        } else {
+            modalHeader.innerText = "Tüm Gelen Talepler & Onay Havuzu (Lojistik Takip)";
+        }
+
+        const { data } = await query.limit(50);
         loading.classList.add('hidden');
         table.classList.remove('hidden');
 
@@ -711,34 +813,51 @@
             data.forEach(row => {
                 const dateStr = new Date(row.created_at).toLocaleString('tr-TR', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
                 const salesRep = row.sales_name || row.sales_email || '-';
+                const orderNameDisplay = row.order_name || row.layout_data?.order_name || row.layout_data?.inputs?.orderName || 'İsimsiz Sipariş';
                 
                 let statusBadge = '<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-[10px] font-black uppercase">Onay Bekliyor</span>';
                 if (row.status === 'onaylandi') statusBadge = '<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase">Onaylandı</span>';
                 else if (row.status === 'reddedildi') statusBadge = '<span class="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-black uppercase">Reddedildi</span>';
                 else if (row.status === 'duzeltme') statusBadge = '<span class="bg-purple-100 text-purple-700 px-2 py-1 rounded text-[10px] font-black uppercase">Düzeltme İstendi</span>';
 
-                let reviewNote = row.layout_data_review_note || '-';
-                
-                // Enforce examining first: Single action button in list
-                let actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm text-[11px] uppercase transition flex items-center justify-center gap-1 mx-auto">🔍 İncele & Karar Ver</button>`;
+                let reviewNote = row.layout_data_review_note || row.layout_data?.review_note || '-';
+                let actionBtn = '';
+
+                if (currentUserProfile?.role === 'logistics' || currentUserProfile?.role === 'admin') {
+                    // Logistics examines first
+                    actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm text-[11px] uppercase transition flex items-center justify-center gap-1 mx-auto">🔍 İncele & Karar Ver</button>`;
+                } else {
+                    // For Sales user
+                    if (row.status === 'duzeltme') {
+                        actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1.5 rounded-lg shadow-md text-[11px] uppercase transition">✏️ Düzelt & Yeniden Gönder</button>`;
+                    } else if (row.status === 'onaylandi') {
+                        actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm text-[11px] uppercase transition">🖨️ Planı Aç / Yazdır</button>`;
+                    } else {
+                        actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-[11px] uppercase transition">👁️ İncele</button>`;
+                    }
+                }
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 transition border-b">
-                        <td class="p-3 text-slate-500">${dateStr}</td>
+                        <td class="p-3 text-slate-500 whitespace-nowrap">${dateStr}</td>
+                        <td class="p-3 font-bold text-slate-900">${orderNameDisplay}</td>
                         <td class="p-3">${statusBadge}</td>
-                        <td class="p-3 font-semibold text-slate-700">${salesRep}</td>
+                        <td class="p-3 font-semibold text-slate-700">
+                            <span class="block">${salesRep}</span>
+                            <span class="text-[10px] text-slate-400 font-normal">${row.sales_email || ''}</span>
+                        </td>
                         <td class="p-3 text-[11px]"><strong class="text-slate-800 block">${row.vehicle_type} (${row.base_type})</strong><span class="text-slate-500">${row.total_boxes} Koli | ${row.total_weight} kg</span></td>
-                        <td class="p-3 text-slate-600 italic text-[11px] max-w-[200px] truncate" title="${reviewNote}">${reviewNote}</td>
-                        <td class="p-3 text-center">${actionBtn}</td>
+                        <td class="p-3 text-slate-600 font-medium text-[11px] max-w-[200px] truncate" title="${reviewNote}">${reviewNote}</td>
+                        <td class="p-3 text-center whitespace-nowrap">${actionBtn}</td>
                     </tr>`;
             });
         } else {
-            tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400 font-semibold">Henüz sisteme düşen kayıt bulunamadı.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 font-semibold">Kayıt bulunamadı.</td></tr>`;
         }
     }
 
     // ==========================================
-    // EXAMINE & DECIDE MATRIX (TRIGGERED AFTER REVIEW)
+    // EXAMINE & DECIDE WORKFLOW
     // ==========================================
     async function loadSimulationIntoEditor(id) {
         const { data, error } = await supabaseClient.from('simulations').select('*').eq('id', id).single();
@@ -746,7 +865,12 @@
         
         currentSimulationId = data.id; 
         currentExaminedOrder = data;
-        const inputs = data.layout_data.inputs;
+        const inputs = data.layout_data?.inputs || {};
+
+        // Load Order Name
+        const loadedOrderName = data.order_name || inputs.orderName || data.layout_data?.order_name || '';
+        document.getElementById('orderTitle').value = loadedOrderName;
+        syncOrderTitleToPrint();
 
         switchTab(inputs.mode || 'single');
         document.getElementById('vehicleType').value = inputs.vehicleType || 'TIR';
@@ -765,14 +889,48 @@
         debouncedRunEngine(); 
         closeDashboard();
 
-        // Reveal Active Review Bar for Logistics/Admin
+        // Show Logistics Review Banner (if reviewing)
         if (currentUserProfile?.role === 'logistics' || currentUserProfile?.role === 'admin') {
             const bar = document.getElementById('activeReviewBar');
             const meta = document.getElementById('reviewBarTalepMeta');
             const salesRep = data.sales_name || data.sales_email || 'Satış';
             const dateStr = new Date(data.created_at).toLocaleDateString('tr-TR');
-            meta.innerText = `Talep #${data.id} &bull; Temsilci: ${salesRep} &bull; ${dateStr}`;
+            meta.innerText = `${loadedOrderName || 'İsimsiz Talep'} (Temsilci: ${salesRep} &bull; ${dateStr})`;
             bar.classList.remove('hidden');
+        } 
+        // Show Sales Feedback Banner (if returned order)
+        else if (currentUserProfile?.role === 'sales') {
+            const feedbackBar = document.getElementById('salesFeedbackBar');
+            const feedbackMeta = document.getElementById('salesFeedbackMeta');
+            const feedbackMsg = document.getElementById('salesFeedbackMessage');
+            const feedbackIcon = document.getElementById('salesFeedbackIcon');
+            const feedbackBadge = document.getElementById('salesFeedbackBadge');
+            const btnSales = document.getElementById('btnSubmitSales');
+
+            feedbackMeta.innerText = `${loadedOrderName || 'İsimsiz Talep'} (${data.vehicle_type})`;
+            feedbackMsg.innerText = `Lojistik Notu / Karar Gerekçesi: ${data.layout_data_review_note || 'Açıklama belirtilmedi.'}`;
+
+            if (data.status === 'duzeltme') {
+                feedbackIcon.innerText = "✏️";
+                feedbackBadge.innerText = "DÜZELTME VE İADE";
+                feedbackBadge.className = "bg-purple-600 text-white px-2 py-0.5 rounded font-black text-[10px] uppercase";
+                btnSales.innerText = "↗ Düzeltip Yeniden Onaya Gönder";
+                feedbackBar.classList.remove('hidden');
+            } else if (data.status === 'reddedildi') {
+                feedbackIcon.innerText = "✕";
+                feedbackBadge.innerText = "REDDEDİLDİ";
+                feedbackBadge.className = "bg-rose-600 text-white px-2 py-0.5 rounded font-black text-[10px] uppercase";
+                btnSales.innerText = "↗ Yeni Talep Olarak Gönder";
+                feedbackBar.classList.remove('hidden');
+            } else if (data.status === 'onaylandi') {
+                feedbackIcon.innerText = "✓";
+                feedbackBadge.innerText = "ONAYLANDI";
+                feedbackBadge.className = "bg-emerald-600 text-white px-2 py-0.5 rounded font-black text-[10px] uppercase";
+                feedbackBar.classList.remove('hidden');
+            } else {
+                feedbackBar.classList.add('hidden');
+                btnSales.innerText = "↗ Onaya Gönder";
+            }
         }
     }
 
@@ -781,16 +939,21 @@
         currentExaminedOrder = null;
     }
 
+    function exitSalesFeedbackMode() {
+        document.getElementById('salesFeedbackBar').classList.add('hidden');
+        const btnSales = document.getElementById('btnSubmitSales');
+        btnSales.innerText = "↗ Onaya Gönder";
+        currentSimulationId = null;
+    }
+
     function decideReviewAction(actionType) {
         if (!currentExaminedOrder) return alert("İncelenen talep bulunamadı.");
 
         if (actionType === 'onaylandi') {
-            // Confirmation prompt for instant approval
-            if (confirm("Bu yükleme planını incelediniz ve onaylıyor musunuz?")) {
+            if (confirm("Bu yükleme planını incelediniz ve kabul ediyor musunuz?")) {
                 submitFinalDecision('onaylandi', 'Yükleme planı incelendi, onaylandı.');
             }
         } else {
-            // Mandatory reason for Rejection or Correction
             document.getElementById('pendingActionType').value = actionType;
             const titleEl = document.getElementById('reviewReasonModalTitle');
             const labelEl = document.getElementById('reviewReasonFieldLabel');
@@ -799,12 +962,12 @@
 
             if (actionType === 'reddedildi') {
                 titleEl.innerText = "Talebi Reddet";
-                labelEl.innerText = "Reddetme Gerekçesi (Zorunlu):";
-                inputEl.placeholder = "Örn: Tonaj dağılımı güvenli değil, ağırlık aşımı mevcut...";
+                labelEl.innerText = "Reddetme Gerekçesi (Satış görecek):";
+                inputEl.placeholder = "Örn: Dorse ağırlık sınırları aşıldı, bu yükleme yola çıkamaz...";
             } else if (actionType === 'duzeltme') {
                 titleEl.innerText = "Düzeltme İste & Geri Gönder";
-                labelEl.innerText = "İstenen Düzeltme Notu (Zorunlu):";
-                inputEl.placeholder = "Örn: Hedef koli miktarını düşürerek tabana 4 kat yayılacak şekilde revize edin...";
+                labelEl.innerText = "Satış Ekibinden İstenen Düzeltme Notu:";
+                inputEl.placeholder = "Örn: Koli adedini azaltın veya tabana daha düşük kat yayılacak şekilde revize edin...";
             }
             openModal('reviewReasonModal');
         }
@@ -815,7 +978,7 @@
         const reason = document.getElementById('reviewReasonInput').value.trim();
 
         if (!reason) {
-            alert("Lütfen Satış ekibine iletilecek bir gerekçe belirtin.");
+            alert("Lütfen Satış ekibine rehberlik edecek bir gerekçe veya açıklama girin.");
             return;
         }
         closeModal('reviewReasonModal');
@@ -830,7 +993,7 @@
         let formattedNote = "";
         if (actionType === 'onaylandi') formattedNote = `✓ Onaylandı (${reason})`;
         else if (actionType === 'reddedildi') formattedNote = `✕ Reddedildi - Gerekçe: ${reason}`;
-        else if (actionType === 'duzeltme') formattedNote = `↺ Düzeltme İstendi - Açıklama: ${reason}`;
+        else if (actionType === 'duzeltme') formattedNote = `↺ Düzeltme İstendi - İstenen Değişiklik: ${reason}`;
 
         const { error } = await supabaseClient
             .from('simulations')
@@ -845,7 +1008,7 @@
         if (error) {
             alert("Karar kaydedilemedi: " + error.message);
         } else {
-            alert(`✅ Karar kaydedildi: ${formattedNote}`);
+            alert(`✅ Karar Satış ekibine iletildi: ${formattedNote}`);
             exitReviewMode();
             updatePendingBadgeCount();
         }
@@ -915,6 +1078,7 @@
     function handleBaseChange() {
         const bt = document.getElementById('baseType').value;
         document.getElementById('palletDropdownGroup').style.display = (bt === 'pallet' || bt === 'slipsheet') ? 'block' : 'none';
+        syncOrderTitleToPrint();
     }
 
     function populateSelects() {
@@ -951,6 +1115,7 @@
         const curveLabel = document.getElementById('optFrontCurveLabel');
         if (curveLabel) curveLabel.style.display = (v === "TIR") ? 'flex' : 'none';
         if(v !== "TIR") document.getElementById('optFrontCurve').checked = false;
+        syncOrderTitleToPrint();
     }
 
     function addMixedRowWithCount(prefillIdx, prefillCount) {
@@ -1026,6 +1191,7 @@
         globalEngineContext = { contL, contW, contH, maxWgt, baseType, optFrontCurve };
         currentVehicleIdx = 0;
         updateFleetUI();
+        syncOrderTitleToPrint();
     }
 
     function packSingleVehicle(queue, effContL, effContW, contH, maxWgt, baseType, optFrontCurve) {
@@ -1131,6 +1297,7 @@
                 if (currentX + actualBoxL > effContL) vehicleFull = true;
 
             } else {
+                // Pallet mode
                 let palletL = 1200, palletW = 800;
                 let c1 = Math.floor(palletL / sku.L) * Math.floor(palletW / sku.W);
                 let c2 = Math.floor(palletL / sku.W) * Math.floor(palletW / sku.L);
@@ -1505,16 +1672,18 @@
 
     function exportCSV() {
         if (!globalFleet || !globalFleet[0] || globalFleet[0].placedItems.length === 0) return alert("Dışa aktarılacak veri yok.");
-        let csv = "Arac,SKU,Koli,Agirlik(kg)\n";
+        let csv = "Arac,Siparis_Adi,SKU,Koli,Agirlik(kg)\n";
+        const oName = document.getElementById('orderTitle')?.value.trim() || 'Isimsiz';
         globalFleet.forEach((f, i) => {
-            f.placedItems.forEach(it => { csv += `${i+1},"${it.id}",${it.boxes},${it.wgt}\n`; });
+            f.placedItems.forEach(it => { csv += `${i+1},"${oName}","${it.id}",${it.boxes},${it.wgt}\n`; });
         });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "Elita_OptiLoad.csv"; a.click();
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Elita_${oName}.csv`; a.click();
     }
 
     function exportPDF() {
-        html2pdf().set({ margin: 10, filename: 'Elita_OptiLoad_Plani.pdf', html2canvas: { scale: 2 }, jsPDF: { orientation: 'landscape' } }).from(document.getElementById('printArea')).save();
+        const oName = document.getElementById('orderTitle')?.value.trim() || 'Elita_Yukleme_Plani';
+        html2pdf().set({ margin: 10, filename: `${oName}.pdf`, html2canvas: { scale: 2 }, jsPDF: { orientation: 'landscape' } }).from(document.getElementById('printArea')).save();
     }
 </script>
 </body>
