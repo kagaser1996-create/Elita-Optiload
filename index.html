@@ -78,8 +78,6 @@
         </div>
 
         <div class="p-4 md:p-5 lg:overflow-y-auto flex-grow custom-scrollbar">
-            
-            <!-- VEHICLE SELECTION -->
             <div class="section-header mt-0">Araç & Güvenlik Sınırları</div>
             <div class="input-group mb-3">
                 <label>Araç Tipi</label>
@@ -102,7 +100,7 @@
                 </div>
                 <div class="input-group">
                     <label>Dökme Katı</label>
-                    <input type="text" value="Zemine Yayılarak" readonly class="!bg-indigo-50 !text-indigo-700 font-bold border-indigo-200 text-[11px] text-center">
+                    <input type="text" value="Tabana Yayılarak (BCT Düşük)" readonly class="!bg-emerald-50 !text-emerald-800 font-bold border-emerald-200 text-[10px] text-center">
                 </div>
             </div>
 
@@ -177,8 +175,6 @@
 
     <!-- RIGHT SIDEBAR: VISUALIZATION & PAGINATION -->
     <div class="flex-grow flex flex-col gap-4 lg:overflow-y-auto print-full-width custom-scrollbar lg:pr-1" id="printArea">
-        
-        <!-- VEHICLE FLEET PAGINATION -->
         <div id="fleetPaginationContainer" class="no-print"></div>
 
         <!-- STATS BAR -->
@@ -201,14 +197,14 @@
             </div>
         </div>
 
-        <!-- OPERATOR INSTRUCTIONS (WITH RESTORED STEP 1 BOX BREAKDOWN) -->
+        <!-- OPERATOR INSTRUCTIONS (BCT OPTIMIZED) -->
         <div id="layerOptimizationInfo"><div id="optimizationDetailsList"></div></div>
 
         <!-- 3D CANVAS AREA -->
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col flex-grow min-h-[350px] md:min-h-[480px] relative">
             <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 rounded-t-xl flex justify-between items-center z-10 relative">
                 <span class="text-sm font-bold text-slate-700">3D İZOMETRİK YÜKLEME SİMÜLASYONU</span>
-                <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200">İnteraktif Çizim</span>
+                <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">BCT & Boy Öncelikli Yayılım</span>
             </div>
             
             <div class="flex-grow flex items-center justify-center p-2 md:p-4 bg-slate-800 relative rounded-b-xl overflow-hidden min-h-[320px] md:min-h-[450px]">
@@ -229,9 +225,6 @@
 </div>
 
 <script>
-    // ==========================================
-    // DATABASE & STATE GLOBALS
-    // ==========================================
     const skuDatabase = [
         {name: "0,750*12 İNCEBELLİ", L: 262, W: 279, H: 278, Wt: 8.83, maxLayers: 9},
         {name: "0,75*20 BÜKLÜM", L: 319, W: 402, H: 273, Wt: 14.69, maxLayers: 9},
@@ -293,7 +286,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
         populateSelects();
-        document.getElementById('skuSelect').value = "6"; // 1*20 İncebelli
+        document.getElementById('skuSelect').value = "29"; // 5*4 KARE (shown in your screenshot)
         populateSKU();
         addMixedRowWithCount(11, 400);
         addMixedRowWithCount(29, 200);
@@ -369,9 +362,9 @@
     function addNewMixedRow() { addMixedRowWithCount(0, 100); debouncedRunEngine(); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-    // ==========================================
-    // ROBUST COMPUTATION ENGINE
-    // ==========================================
+    // ========================================================
+    // BCT-FIRST PACKING LOGIC: PRIORITIZE CONTAINER LENGTH
+    // ========================================================
     function runEngine() {
         const baseType = document.getElementById('baseType').value;
         const contL = parseInt(document.getElementById('contL').value) || 13600;
@@ -438,77 +431,81 @@
             const sku = item.sku;
 
             if (baseType === 'floor') {
+                // Determine optimal box orientation
                 let c1 = Math.floor(effContW / sku.W);
                 let c2 = Math.floor(effContW / sku.L);
                 let isRotated = c2 > c1;
                 let cols = isRotated ? c2 : c1;
                 let actualBoxW = isRotated ? sku.L : sku.W;
                 let actualBoxL = isRotated ? sku.W : sku.L;
+                
+                // Maximum allowed ceiling height
                 let physMaxLayers = Math.max(1, Math.min(sku.maxLayers, Math.floor((contH - 20) / sku.H)));
-
                 if (cols <= 0) continue;
 
+                // Available rows to reach the door
                 let maxRowsAvailable = Math.floor((effContL - currentX) / actualBoxL);
                 if (maxRowsAvailable <= 0) {
                     vehicleFull = true;
                     continue;
                 }
 
-                // Optimal layer search: find lowest uniform height (k) to prioritize length (reach toward doors)
-                let optimalLayers = physMaxLayers;
+                // Realistic count this truck can carry under the weight limit
+                let maxBoxesByWeight = Math.floor((maxWgt - totalWgt) / sku.Wt);
+                let boxesForThisTruck = Math.min(item.remaining, maxBoxesByWeight);
+
+                // KEY BCT LOGIC: Find lowest height (k) so that boxes spread the entire length
+                let optimalLayers = 1;
                 for (let k = 1; k <= physMaxLayers; k++) {
-                    let neededRows = Math.ceil(item.remaining / (cols * k));
-                    if (neededRows <= maxRowsAvailable) {
+                    let rowsNeeded = Math.ceil(boxesForThisTruck / (cols * k));
+                    if (rowsNeeded <= maxRowsAvailable) {
                         optimalLayers = k;
                         break;
                     }
+                    optimalLayers = k;
                 }
 
+                // If still too many boxes for the truck floor, step up layers up to physMaxLayers
                 let boxesPerRow = cols * optimalLayers;
 
                 while (item.remaining > 0 && currentX + actualBoxL <= effContL) {
-                    if (totalWgt + (sku.Wt * Math.min(boxesPerRow, item.remaining)) > maxWgt) {
-                        let allowBoxes = Math.floor((maxWgt - totalWgt) / sku.Wt);
-                        if (allowBoxes > 0) {
-                            let partialLayers = Math.ceil(allowBoxes / cols);
-                            placedItems.push({
-                                id: sku.name, x: currentX, y: (effContW - (cols * actualBoxW)) / 2,
-                                l: actualBoxL, w: cols * actualBoxW, h: partialLayers * sku.H,
-                                boxes: allowBoxes, wgt: allowBoxes * sku.Wt, color: item.color,
-                                cols, rows: 1, layers: partialLayers, targetLayers: optimalLayers,
-                                singleBoxL: actualBoxL, singleBoxW: actualBoxW, singleBoxH: sku.H,
-                                isRotated, isPartial: true, priority: item.priority
-                            });
-                            totalWgt += allowBoxes * sku.Wt;
-                            totalBoxes += allowBoxes;
-                            item.remaining -= allowBoxes;
-                        }
+                    if (totalWgt + sku.Wt > maxWgt) {
                         vehicleFull = true;
                         break;
                     }
 
-                    let boxesInRow = Math.min(boxesPerRow, item.remaining);
-                    let rowLayers = Math.ceil(boxesInRow / cols);
-                    let rowWgt = boxesInRow * sku.Wt;
+                    // How many boxes can fit in this row without exceeding weight?
+                    let allowBoxesInRow = Math.min(boxesPerRow, item.remaining);
+                    let maxBoxesByRemainingWeight = Math.floor((maxWgt - totalWgt) / sku.Wt);
+                    allowBoxesInRow = Math.min(allowBoxesInRow, maxBoxesByRemainingWeight);
+
+                    if (allowBoxesInRow <= 0) {
+                        vehicleFull = true;
+                        break;
+                    }
+
+                    let rowLayers = Math.ceil(allowBoxesInRow / cols);
+                    let rowWgt = allowBoxesInRow * sku.Wt;
 
                     placedItems.push({
                         id: sku.name, x: currentX, y: (effContW - (cols * actualBoxW)) / 2,
                         l: actualBoxL, w: cols * actualBoxW, h: rowLayers * sku.H,
-                        boxes: boxesInRow, wgt: rowWgt, color: item.color,
+                        boxes: allowBoxesInRow, wgt: rowWgt, color: item.color,
                         cols, rows: 1, layers: rowLayers, targetLayers: optimalLayers,
                         singleBoxL: actualBoxL, singleBoxW: actualBoxW, singleBoxH: sku.H,
-                        isRotated, isPartial: (boxesInRow < boxesPerRow), priority: item.priority
+                        isRotated, isPartial: (allowBoxesInRow < boxesPerRow), priority: item.priority
                     });
 
                     totalWgt += rowWgt;
-                    totalBoxes += boxesInRow;
-                    item.remaining -= boxesInRow;
+                    totalBoxes += allowBoxesInRow;
+                    item.remaining -= allowBoxesInRow;
                     currentX += actualBoxL;
                 }
 
                 if (currentX + actualBoxL > effContL) vehicleFull = true;
 
             } else {
+                // Pallet mode
                 let palletL = 1200, palletW = 800;
                 let c1 = Math.floor(palletL / sku.L) * Math.floor(palletW / sku.W);
                 let c2 = Math.floor(palletL / sku.W) * Math.floor(palletW / sku.L);
@@ -565,7 +562,7 @@
     }
 
     // ==========================================
-    // UI & REPORTING UPDATES (RESTORED DETAILS)
+    // UI & REPORTING UPDATES
     // ==========================================
     function updateFleetUI() {
         let pagContainer = document.getElementById('fleetPaginationContainer');
@@ -596,7 +593,7 @@
         document.getElementById('resStatus').innerText = weightPct >= 99 ? `⚠️ Ağırlık Sınırında (CoG: ${(cogX/1000).toFixed(1)}m)` : `Optimum (CoG: ${(cogX/1000).toFixed(1)}m)`;
         document.getElementById('resStatus').className = weightPct >= 99 ? "text-xs md:text-sm font-bold text-rose-600 mt-1" : "text-xs md:text-sm font-bold text-emerald-600 mt-1";
 
-        // Aggregate placed items per SKU to render full breakdown in Step 1
+        // Group rows per SKU for Step 1 Operator Sheet
         let groupedItems = {};
         truck.placedItems.forEach(item => {
             if (!groupedItems[item.id]) {
@@ -638,24 +635,24 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs mb-2">
                         <div class="bg-slate-50 p-2 rounded">
                             <span class="block text-slate-500 text-[10px] uppercase font-bold">Toplam Blok / Sıra</span>
-                            <strong class="text-slate-800 text-xs md:text-sm">${g.totalRows} Sıra</strong>
+                            <strong class="text-slate-800 text-xs md:text-sm">${g.totalRows} Sıra (Önden Kapıya Doğru Yayılmış)</strong>
                         </div>
                         <div class="bg-slate-50 p-2 rounded">
                             <span class="block text-slate-500 text-[10px] uppercase font-bold">Sıra Başına Koli</span>
                             <strong class="text-slate-800 text-xs md:text-sm">${g.cols * g.layers} Koli (Tam Sıra)</strong>
                         </div>
                         
-                        <div class="col-span-1 md:col-span-2 bg-indigo-50 p-2.5 rounded border border-indigo-100">
-                            <span class="block text-indigo-700 text-[10px] uppercase font-bold mb-1">Araç İçi Genel Dizilim Boyutları</span>
+                        <div class="col-span-1 md:col-span-2 bg-emerald-50 p-2.5 rounded border border-emerald-200">
+                            <span class="block text-emerald-800 text-[10px] uppercase font-bold mb-1">BCT & Zemin Optimizasyonu Sonucu</span>
                             <strong class="text-slate-800 text-xs block mb-1">
-                                Genişlik (En): ${g.cols} Koli &nbsp;|&nbsp; Uzunluk (Boy): ${g.totalRows} Sıra &nbsp;|&nbsp; Yükseklik (Kat): ${g.layers} Kat
+                                Genişlik (En): ${g.cols} Koli &nbsp;|&nbsp; Uzunluk (Boy): ${g.totalRows} Sıra &nbsp;|&nbsp; İstif Yüksekliği: ${g.layers} Kat (Tavana kadar yığılmadı, tabana yayıldı)
                             </strong>
-                            <span class="text-emerald-700 font-bold text-[10px] uppercase border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 rounded shadow-sm inline-block mt-0.5">
+                            <span class="text-emerald-700 font-bold text-[10px] uppercase border border-emerald-300 bg-white px-1.5 py-0.5 rounded shadow-sm inline-block mt-0.5">
                                 Kutu Yönü: ${orientationText}
                             </span>
                         </div>
                         
-                        ${g.hasPartial ? `<div class="col-span-1 md:col-span-2 bg-rose-50 text-rose-700 p-2 rounded border border-rose-200 text-xs font-semibold">⚠️ <strong>Kısmi İstif:</strong> Kapıya en yakın olan son sırayı kalan koli miktarı kadar dizin.</div>` : ''}
+                        ${g.hasPartial ? `<div class="col-span-1 md:col-span-2 bg-amber-50 text-amber-800 p-2 rounded border border-amber-200 text-xs font-semibold">⚠️ <strong>Son Sıra:</strong> Ağırlık sınırına ulaşıldığı için kapıdaki son sırayı kalan adet kadar dizin.</div>` : ''}
                     </div>
 
                     <div class="flex items-center gap-4 border-t border-slate-100 pt-2.5">
@@ -664,7 +661,7 @@
                         </div>
                         <div class="text-[10px] text-slate-500">
                             <strong class="text-slate-700 uppercase">Taban Dizilimi (Üstten Görünüm)</strong><br>
-                            Her sırayı yandaki plana göre dorseye ortalayarak yerleştirin. Üzerine <strong>${g.layers} kat</strong> olana kadar aynı deseni tekrarlayın.
+                            Her sırayı dorseye ortalayarak dizin. Kutu altı ezilmesini (BCT) önlemek için yükseklik sadece <strong>${g.layers} kat</strong> ile sınırlandırılmıştır.
                         </div>
                     </div>
                 </li>
@@ -686,7 +683,7 @@
                 <div>
                     <h5 class="font-bold text-xs text-indigo-900 bg-indigo-100 p-2 rounded mb-1.5">ADIM 2: ARAÇ İÇİNE YERLEŞTİRİN & MERKEZLEYİN</h5>
                     <ul class="list-disc pl-5 space-y-1 text-slate-700">
-                        <li>3D modeldeki plana göre istifleri ön duvardan kapıya doğru sırayla yerleştirin.</li>
+                        <li>Kutuları tavana kadar yığmak yerine, <strong>dorse tabanına yayarak</strong> kapıya doğru ilerleyin.</li>
                         <li><strong>Tüm yükü dorse genişliğine göre tam ortalayın.</strong></li>
                     </ul>
                 </div>
@@ -695,13 +692,12 @@
                     <h5 class="font-bold text-xs text-indigo-900 bg-indigo-100 p-2 rounded mb-1.5">ADIM 3: GÜVENLİK VE SABİTLEME (STATİK/DİNAMİK ETKİLER)</h5>
                     <ul class="list-disc pl-5 space-y-1 text-slate-700">
                         <li>${(useAirbag && truck.gapW > 80) ? `🔄 <strong>Yanal Boşluk:</strong> Yanlarda toplam ${Math.floor(truck.gapW)} mm boşluk kalmaktadır. Virajlarda kaymayı önlemek için <strong>Hava Yastığı (Airbag)</strong> kullanın.` : '✅ Yanal alan güvenli seviyede doludur.'}</li>
-                        <li>${(useLashing && truck.gapL > 200) ? `🚚 <strong>Boyuna Boşluk:</strong> Yük kapıya ${Math.floor(truck.gapL)} mm mesafede bitmektedir. Devrilmeyi önlemek için <strong>Spanset (Lashing)</strong> çekilmelidir.` : '✅ Yük kapıya tam oturmaktadır. Devrilme riski minimumdur.'}</li>
+                        <li>${(useLashing && truck.gapL > 250) ? `🚚 <strong>Boyuna Boşluk:</strong> Yük kapıya ${Math.floor(truck.gapL)} mm mesafede bitmektedir. Devrilmeyi önlemek için <strong>Spanset (Lashing)</strong> çekilmelidir.` : '✅ Yük kapıya kadar tam oturmuştur. Spanset ihtiyacı minimumdur.'}</li>
                     </ul>
                 </div>
             </div>
         `;
 
-        // Render mini top-down canvas previews for each SKU in Step 1
         setTimeout(() => {
             groupList.forEach((g, idx) => {
                 let cvs = document.getElementById(`pallet_preview_${idx}`);
@@ -733,7 +729,7 @@
     }
 
     // ==========================================
-    // 3D ISOMETRIC ENGINE (INDIVIDUAL BOX OUTLINES)
+    // 3D ISOMETRIC ENGINE (BOX OUTLINES)
     // ==========================================
     function initCanvasInteractions() {
         const canvas = document.getElementById('contCanvas');
@@ -784,7 +780,7 @@
             ctx.strokeStyle = stroke; ctx.lineWidth = width; ctx.stroke();
         }
 
-        // 1. Trailer Floor & Back Walls
+        // 1. Trailer Floor & Walls
         drawPoly([project(0,0,0), project(contL,0,0), project(contL,contW,0), project(0,contW,0)], '#334155');
         drawPoly([project(0,0,0), project(contL,0,0), project(contL,0,contH), project(0,0,contH)], '#1e293b');
         drawPoly([project(0,0,0), project(0,contW,0), project(0,contW,contH), project(0,0,contH)], '#0f172a');
@@ -793,7 +789,7 @@
             drawPoly([project(0,0,0), project(100,0,0), project(100,contW,0), project(0,contW,0)], 'rgba(234, 179, 8, 0.4)', '#ca8a04');
         }
 
-        // 2. Render Placed Rows & Sub-divided Box Outlines
+        // 2. Render Rows with Individual Box Grids
         placedItems.forEach(b => {
             let pRight = [project(b.x + b.l, b.y, 0), project(b.x + b.l, b.y + b.w, 0), project(b.x + b.l, b.y + b.w, b.h), project(b.x + b.l, b.y, b.h)];
             let pFront = [project(b.x, b.y + b.w, 0), project(b.x + b.l, b.y + b.w, 0), project(b.x + b.l, b.y + b.w, b.h), project(b.x, b.y + b.w, b.h)];
@@ -803,30 +799,22 @@
             drawPoly(pFront, b.color.left, 'rgba(0,0,0,0.6)', 1.5);
             drawPoly(pTop, b.color.top, 'rgba(0,0,0,0.6)', 1.5);
 
-            // Draw individual box lines on Right Face
+            // Outlines for individual boxes along height
             for (let l = 1; l < b.layers; l++) {
                 let z = l * b.singleBoxH;
                 drawLine(project(b.x + b.l, b.y, z), project(b.x + b.l, b.y + b.w, z), 'rgba(0,0,0,0.35)');
-            }
-            for (let c = 1; c < b.cols; c++) {
-                let y = b.y + c * (b.w / b.cols);
-                drawLine(project(b.x + b.l, y, 0), project(b.x + b.l, y, b.h), 'rgba(0,0,0,0.35)');
-            }
-
-            // Draw individual box lines on Front Face
-            for (let l = 1; l < b.layers; l++) {
-                let z = l * b.singleBoxH;
                 drawLine(project(b.x, b.y + b.w, z), project(b.x + b.l, b.y + b.w, z), 'rgba(0,0,0,0.35)');
             }
 
-            // Draw individual box lines on Top Face
+            // Outlines for individual boxes across width
             for (let c = 1; c < b.cols; c++) {
                 let y = b.y + c * (b.w / b.cols);
+                drawLine(project(b.x + b.l, y, 0), project(b.x + b.l, y, b.h), 'rgba(0,0,0,0.35)');
                 drawLine(project(b.x, y, b.h), project(b.x + b.l, y, b.h), 'rgba(0,0,0,0.4)');
             }
         });
 
-        // 3. Center of Gravity (CoG) Pin
+        // 3. Center of Gravity
         if (placedItems.length > 0) {
             let cogPt = project(cogX, contW / 2, contH / 2);
             ctx.beginPath(); ctx.arc(cogPt.x, cogPt.y, 6, 0, 2*Math.PI);
