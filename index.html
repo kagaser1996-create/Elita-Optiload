@@ -234,7 +234,7 @@
     </div>
 </div>
 
-<!-- PRINTABLE FORM HEADER (AUTOMATICALLY REPLIES WITH ORDER NAME & OPERATOR SPECS) -->
+<!-- PRINTABLE FORM HEADER -->
 <div class="hidden print-only mb-4 border-b-2 border-slate-900 pb-3">
     <div class="flex justify-between items-end mb-2">
         <div>
@@ -264,7 +264,7 @@
 
         <div class="p-4 md:p-5 lg:overflow-y-auto flex-grow custom-scrollbar">
             
-            <!-- ORDER IDENTIFIER INPUT -->
+            <!-- ORDER TITLE INPUT -->
             <div class="mb-3 bg-sky-50 border border-sky-200 p-3 rounded-lg">
                 <label class="text-[10px] font-black text-sky-800 uppercase mb-1 block">Sipariş / Talep Adı (Yazdırmaya Çıkar)</label>
                 <input type="text" id="orderTitle" placeholder="Örn: Sipariş #1042 - ABC Dağıtım" class="w-full p-2 border border-sky-300 rounded bg-white text-xs font-bold text-slate-800 focus:outline-none focus:border-sky-500" oninput="syncOrderTitleToPrint();">
@@ -421,43 +421,31 @@
 </div>
 
 <script>
+    // ==========================================
+    // UPDATED SKU DATABASE (NEW SPECIFICATIONS)
+    // ==========================================
     const skuDatabase = [
-        {name: "0,750*12 İNCEBELLİ", L: 262, W: 279, H: 278, Wt: 8.83, maxLayers: 9},
-        {name: "0,75*20 BÜKLÜM", L: 319, W: 402, H: 273, Wt: 14.69, maxLayers: 9},
-        {name: "0,85*12 YENİ VK BÜKLÜM", L: 232, W: 308, H: 267, Wt: 9.68, maxLayers: 9},
-        {name: "0,85*12 VK BÜKLÜM", L: 252, W: 332, H: 242, Wt: 10.50, maxLayers: 9},
-        {name: "0,9*12 VK BÜKLÜM", L: 252, W: 332, H: 252, Wt: 10.23, maxLayers: 9},
-        {name: "0,9*20 VK BÜKLÜM", L: 418, W: 332, H: 252, Wt: 17.05, maxLayers: 9},
-        {name: "1*20 İNCEBELLİ", L: 342, W: 417, H: 298, Wt: 19.73, maxLayers: 8},
-        {name: "1*12 İNCEBELLİ", L: 282, W: 317, H: 298, Wt: 11.95, maxLayers: 9},
-        {name: "2*6 İNCEBELLİ", L: 268, W: 297, H: 328, Wt: 11.81, maxLayers: 7},
-        {name: "1,8*6 İNCEBELLİ", L: 259, W: 284, H: 333, Wt: 10.72, maxLayers: 8},
-        {name: "1*20 VK BÜKLÜM", L: 332, W: 414, H: 271, Wt: 19.06, maxLayers: 8},
-        {name: "1*12 VK BÜKLÜM", L: 250, W: 332, H: 271, Wt: 11.69, maxLayers: 8},
-        {name: "1*15 VK BÜKLÜM", L: 250, W: 414, H: 271, Wt: 14.43, maxLayers: 8},
-        {name: "1*20 BÜKLÜM", L: 323, W: 404, H: 298, Wt: 19.63, maxLayers: 8},
-        {name: "1*15 BÜKLÜM", L: 242, W: 405, H: 298, Wt: 14.43, maxLayers: 8},
-        {name: "1*12 BÜKLÜM", L: 242, W: 324, H: 298, Wt: 11.70, maxLayers: 8},
-        {name: "2*6 BÜKLÜM", L: 219, W: 324, H: 326, Wt: 11.70, maxLayers: 7},
-        {name: "1,8*6 BÜKLÜM", L: 214, W: 317, H: 326, Wt: 10.60, maxLayers: 8},
-        {name: "1,5*6 KULPLU", L: 224, W: 272, H: 311, Wt: 9.13, maxLayers: 7},
-        {name: "1,8*6 KULPLU", L: 177, W: 394, H: 308, Wt: 10.80, maxLayers: 7},
-        {name: "1*12 KARE MARRE", L: 234, W: 304, H: 269, Wt: 11.66, maxLayers: 6},
-        {name: "3*6 YUVARLAK", L: 254, W: 379, H: 312, Wt: 17.63, maxLayers: 6},
-        {name: "3*6 KÖŞELİ", L: 254, W: 379, H: 338, Wt: 17.64, maxLayers: 6},
-        {name: "4*4 KARE", L: 264, W: 299, H: 315, Wt: 15.24, maxLayers: 6},
-        {name: "4*4 KAVANOZ", L: 344, W: 344, H: 252, Wt: 15.21, maxLayers: 6},
-        {name: "4,5*4 KARE", L: 264, W: 299, H: 345, Wt: 17.32, maxLayers: 6},
-        {name: "5*4 KUBBELİ*", L: 330, W: 330, H: 351, Wt: 19.42, maxLayers: 6},
-        {name: "5*4 KAVANOZ", L: 369, W: 369, H: 280, Wt: 19.75, maxLayers: 6},
-        {name: "5*4 YAPRAK", L: 279, W: 388, H: 345, Wt: 19.75, maxLayers: 6},
-        {name: "5*4 KARE", L: 264, W: 299, H: 375, Wt: 19.23, maxLayers: 6},
-        {name: "5 L Tin Can (Teneke) 4'lü", L: 320, W: 248, H: 327, Wt: 19.84, maxLayers: 4},
-        {name: "5 L Tin Can (Teneke) 4'lü+Koli", L: 320, W: 248, H: 327, Wt: 20.27, maxLayers: 4},
-        {name: "10 L Tin Can (Teneke)", L: 205, W: 205, H: 304, Wt: 9.81, maxLayers: 5},
-        {name: "16 L Tin Can (Teneke)", L: 244, W: 244, H: 323, Wt: 15.59, maxLayers: 4},
-        {name: "18 L Tin Can (Teneke)", L: 244, W: 244, H: 359, Wt: 17.43, maxLayers: 4},
-        {name: "20 L Jerry Can (Bidon)", L: 244, W: 291, H: 393, Wt: 19.20, maxLayers: 4}
+        {name: "1,5LX6 KULPLU", L: 230, W: 272, H: 307, Wt: 9.13, maxLayers: 7},
+        {name: "3LX6 Kare", L: 238, W: 362, H: 333, Wt: 17.64, maxLayers: 6},
+        {name: "4LX4 Kare", L: 260, W: 296, H: 332, Wt: 15.24, maxLayers: 6},
+        {name: "4,5LX4 Kare", L: 260, W: 296, H: 363, Wt: 17.32, maxLayers: 6},
+        {name: "5LX4 Kare", L: 260, W: 296, H: 394, Wt: 19.23, maxLayers: 6},
+        {name: "1LX12 VK BÜKLÜM", L: 257, W: 338, H: 283, Wt: 11.69, maxLayers: 8},
+        {name: "2LX6 VK BÜKLÜM", L: 224, W: 329, H: 326, Wt: 11.70, maxLayers: 7},
+        {name: "5LX4 Kubbeli", L: 336, W: 336, H: 355, Wt: 19.42, maxLayers: 6},
+        {name: "5LX4 Yaprak", L: 288, W: 402, H: 346, Wt: 19.75, maxLayers: 6},
+        {name: "1,8LX6 BÜKLÜM", L: 222, W: 326, H: 325, Wt: 10.60, maxLayers: 8},
+        {name: "5LX4 YUVARLAK KAVANOZ", L: 382, W: 382, H: 280, Wt: 19.75, maxLayers: 6},
+        {name: "4,5LX4 KARE KAVANOZ", L: 272, W: 308, H: 335, Wt: 17.32, maxLayers: 6},
+        {name: "0,85LX12 YENİ VK BÜKLÜM", L: 242, W: 318, H: 262, Wt: 9.68, maxLayers: 9},
+        {name: "1LX20 BÜKLÜM (KADOOĞLU)", L: 338, W: 419, H: 294, Wt: 19.63, maxLayers: 8},
+        {name: "1LX12 BÜKLÜM (KADOOĞLU)", L: 257, W: 338, H: 294, Wt: 11.70, maxLayers: 8},
+        {name: "1LX12 İNCEBELLİ", L: 296, W: 326, H: 294, Wt: 11.95, maxLayers: 9},
+        {name: "1LX20 İNCEBELLİ", L: 367, W: 430, H: 294, Wt: 19.73, maxLayers: 8},
+        {name: "2LX6 İNCEBELLİ", L: 212, W: 407, H: 326, Wt: 11.81, maxLayers: 7},
+        {name: "0,75LX12 Yeni Vk Büklüm", L: 236, W: 310, H: 251, Wt: 8.83, maxLayers: 9},
+        {name: "2LX6 Kare (Abalı-Kırlangıç)", L: 214, W: 314, H: 323, Wt: 11.70, maxLayers: 7},
+        {name: "1LX12 Kare (Abalı-Kırlangıç)", L: 230, W: 302, H: 297, Wt: 11.66, maxLayers: 6}
     ];
 
     const colorMap = [
@@ -509,12 +497,12 @@
 
         populateSelects();
         const skuSel = document.getElementById('skuSelect');
-        if (skuSel && skuSel.options.length > 29) {
-            skuSel.value = "29"; // 5*4 KARE
+        if (skuSel && skuSel.options.length > 4) {
+            skuSel.value = "4"; // Default: 5LX4 Kare
         }
         populateSKU();
-        addMixedRowWithCount(11, 400);
-        addMixedRowWithCount(29, 200);
+        addMixedRowWithCount(2, 400);
+        addMixedRowWithCount(5, 200);
         updateVehicleDims();
         handleBaseChange();
         initCanvasInteractions();
@@ -683,7 +671,7 @@
     }
 
     // ==========================================
-    // BADGE NOTIFICATIONS (FOR SALES & LOGISTICS)
+    // BADGE NOTIFICATIONS
     // ==========================================
     async function updatePendingBadgeCount() {
         if (!supabaseClient || !currentUserProfile) return;
@@ -797,7 +785,6 @@
 
         let query = supabaseClient.from('simulations').select('*').order('created_at', { ascending: false });
 
-        // STRICT ROLE ISOLATION: Sales can only see their own orders
         if (currentUserProfile?.role === 'sales') {
             modalHeader.innerText = "Girdiğim Talepler & Durum Takibi";
             query = query.eq('sales_email', currentUser.email);
@@ -824,10 +811,8 @@
                 let actionBtn = '';
 
                 if (currentUserProfile?.role === 'logistics' || currentUserProfile?.role === 'admin') {
-                    // Logistics examines first
                     actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm text-[11px] uppercase transition flex items-center justify-center gap-1 mx-auto">🔍 İncele & Karar Ver</button>`;
                 } else {
-                    // For Sales user
                     if (row.status === 'duzeltme') {
                         actionBtn = `<button onclick="loadSimulationIntoEditor(${row.id})" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1.5 rounded-lg shadow-md text-[11px] uppercase transition">✏️ Düzelt & Yeniden Gönder</button>`;
                     } else if (row.status === 'onaylandi') {
@@ -867,7 +852,6 @@
         currentExaminedOrder = data;
         const inputs = data.layout_data?.inputs || {};
 
-        // Load Order Name
         const loadedOrderName = data.order_name || inputs.orderName || data.layout_data?.order_name || '';
         document.getElementById('orderTitle').value = loadedOrderName;
         syncOrderTitleToPrint();
@@ -889,7 +873,6 @@
         debouncedRunEngine(); 
         closeDashboard();
 
-        // Show Logistics Review Banner (if reviewing)
         if (currentUserProfile?.role === 'logistics' || currentUserProfile?.role === 'admin') {
             const bar = document.getElementById('activeReviewBar');
             const meta = document.getElementById('reviewBarTalepMeta');
@@ -897,9 +880,7 @@
             const dateStr = new Date(data.created_at).toLocaleDateString('tr-TR');
             meta.innerText = `${loadedOrderName || 'İsimsiz Talep'} (Temsilci: ${salesRep} &bull; ${dateStr})`;
             bar.classList.remove('hidden');
-        } 
-        // Show Sales Feedback Banner (if returned order)
-        else if (currentUserProfile?.role === 'sales') {
+        } else if (currentUserProfile?.role === 'sales') {
             const feedbackBar = document.getElementById('salesFeedbackBar');
             const feedbackMeta = document.getElementById('salesFeedbackMeta');
             const feedbackMsg = document.getElementById('salesFeedbackMessage');
@@ -1297,7 +1278,6 @@
                 if (currentX + actualBoxL > effContL) vehicleFull = true;
 
             } else {
-                // Pallet mode
                 let palletL = 1200, palletW = 800;
                 let c1 = Math.floor(palletL / sku.L) * Math.floor(palletW / sku.W);
                 let c2 = Math.floor(palletL / sku.W) * Math.floor(palletW / sku.L);
